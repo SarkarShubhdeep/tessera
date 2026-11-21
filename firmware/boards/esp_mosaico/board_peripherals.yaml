@@ -1,0 +1,103 @@
+version: 1.0.0
+# Peripherals for ESP-Mosaico v1.1/v1.2 (ESP32-S31NRV16), flattened for ESP-Claw's Board Manager 0.6.
+#
+# Pins come from Espressif's official esp_boards/esp_mosaico definition (v1.0 base + v1.2 revision diff),
+# which cites the ESP-Mosaico user guide and CoreBoard schematic. The v1.0 layout (I2C on GPIO0/1,
+# SCLK 44 / RST 42, codec rail on GPIO56) is NOT supported by this file.
+
+peripherals:
+  # On-board bus: CST9220 touch 0x5A, ES8311 0x19, BMI270 0x69, BMM150 0x11/0x12, BQ27220 0x55.
+  - name: i2c_master
+    type: i2c
+    role: master
+    config:
+      port: 0
+      pins:
+        sda: 56
+        scl: 3
+
+  # Expansion-slot bus (module EEPROMs 0x50/0x51, camera SCCB).
+  - name: i2c_subboard
+    type: i2c
+    role: master
+    config:
+      port: 1
+      pins:
+        sda: 0
+        scl: 1
+
+  # CO5300 AMOLED, QSPI on SPI2. CS 50 is set on the display device.
+  - name: spi_display
+    type: spi
+    role: master
+    config:
+      spi_bus_config:
+        spi_port: SPI2_HOST
+        data0_io_num: 36
+        data1_io_num: 51
+        data2_io_num: 35
+        data3_io_num: 9
+        sclk_io_num: 42
+        max_transfer_sz: 460800   # 480 * 480 * RGB565
+
+  # ES8311: one I2S port, full duplex.
+  - name: i2s_audio_out
+    type: i2s
+    role: master
+    format: std-out
+    config: &i2s_config
+      port: 0
+      sample_rate_hz: 16000
+      mclk_multiple: 256
+      data_bit_width: 16
+      slot_bit_width: I2S_SLOT_BIT_WIDTH_AUTO
+      slot_mode: I2S_SLOT_MODE_STEREO
+      slot_mask: I2S_STD_SLOT_BOTH
+      ws_width: 16
+      pins:
+        mclk: 54
+        bclk: 37
+        ws: 49
+        dout: 52
+        din: 40
+
+  - name: i2s_audio_in
+    type: i2s
+    role: master
+    format: std-in
+    config: *i2s_config
+
+  # NS4150B speaker amplifier enable, active high.
+  - name: gpio_pa_control
+    type: gpio
+    role: io
+    config:
+      pin: 45
+      mode: GPIO_MODE_OUTPUT
+      default_level: 1
+
+  - name: gpio_vibration_motor
+    type: gpio
+    role: io
+    config:
+      pin: 8
+      mode: GPIO_MODE_OUTPUT
+      default_level: 0
+
+  - name: gpio_ai_button
+    type: gpio
+    role: io
+    config:
+      pin: 7
+      mode: GPIO_MODE_INPUT
+      pull_up: true
+      pull_down: false
+
+  - name: gpio_boot_button
+    type: gpio
+    role: io
+    config:
+      pin: 61
+      mode: GPIO_MODE_INPUT
+      pull_up: true
+      pull_down: false

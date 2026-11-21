@@ -1,0 +1,146 @@
+version: 1.0.0
+# Devices for ESP-Mosaico v1.1/v1.2, flattened for ESP-Claw's Board Manager 0.6.
+# Source: Espressif esp_boards/esp_mosaico (0.7.3) with its v1.2 revision diff applied.
+
+devices:
+  # Type-C is USB HS OTG; the S31 has no ROM CDC there, so this component starts a TinyUSB CDC
+  # console (and DTR/RTS auto-download) by wrapping app_main.
+  - name: usb_hs_console
+    type: custom
+    version: default
+    init_skip: true
+    dependencies:
+      usb_hs_console:
+        path: "${BOARD_PATH}/usb_hs_console"
+
+  # 3.3 V rail for the panel and module slots: GPIO60, active-low, soft-ramped in mosaico_power.c.
+  - name: lcd_power_ctrl
+    type: power_ctrl
+    sub_type: custom
+
+  # ES8311 DAC -> NS4150B (gain 240k/100k = 7.6 dB, per the official board notes).
+  - name: audio_dac
+    chip: es8311
+    type: audio_codec
+    version: default
+    config:
+      adc_enabled: false
+      dac_enabled: true
+      dac_max_channel: 1
+      dac_channel_mask: "1"
+      dac_init_gain: 0
+      mclk_enabled: true
+    peripherals:
+      - name: gpio_pa_control
+        gain: 7.6
+        active_level: 1
+      - name: i2s_audio_out
+      - name: i2c_master
+        address: 0x32       # 7-bit 0x19 << 1
+        frequency: 400000
+
+  # ES8311 ADC <- on-board microphone.
+  - name: audio_adc
+    chip: es8311
+    type: audio_codec
+    version: default
+    config:
+      adc_enabled: true
+      dac_enabled: false
+      adc_max_channel: 1
+      adc_channel_mask: "1"
+      adc_init_gain: 0
+      mclk_enabled: true
+    peripherals:
+      - name: i2s_audio_in
+      - name: i2c_master
+        address: 0x32
+        frequency: 400000
+
+  # 480x480 CO5300 AMOLED over QSPI.
+  - name: display_lcd
+    chip: co5300
+    type: display_lcd
+    sub_type: spi
+    version: default
+    power_ctrl_device: lcd_power_ctrl
+    dependencies:
+      espressif/esp_lcd_co5300: "*"
+    config:
+      x_max: 480
+      y_max: 480
+      swap_xy: false
+      mirror_x: false
+      mirror_y: false
+      need_reset: true
+      io_spi_config:
+        cs_gpio_num: 50
+        dc_gpio_num: -1
+        spi_mode: 0
+        lcd_cmd_bits: 32
+        lcd_param_bits: 8
+        flags:
+          quad_mode: true
+      lcd_panel_config:
+        reset_gpio_num: 44
+        rgb_ele_order: LCD_RGB_ELEMENT_ORDER_RGB
+        bits_per_pixel: 16
+        data_endian: LCD_RGB_DATA_ENDIAN_BIG
+        vendor_config: NULL
+    peripherals:
+      - name: spi_display
+
+  # CST9220 touch, INT GPIO6.
+  - name: lcd_touch
+    chip: cst9220
+    type: lcd_touch
+    sub_type: i2c
+    version: default
+    dependencies:
+      espressif/esp_lcd_touch_cst9220: "^0.1.2"
+    config:
+      io_i2c_config:
+        scl_speed_hz: 400000
+      touch_config:
+        x_max: 480
+        y_max: 480
+        rst_gpio_num: -1
+        int_gpio_num: 6
+    peripherals:
+      - name: i2c_master
+        i2c_addr: [0xB4]    # 7-bit 0x5A << 1
+
+  # vibration_motor (GPIO8) is deliberately NOT a gpio_ctrl device: Board Manager 0.6's gpio_ctrl
+  # drives the pin to its active level when it initializes, which runs the motor from boot (and its
+  # current draw then resets the board). Espressif's board needs bmgr 0.7.6's init_level for this.
+  # The gpio_vibration_motor peripheral alone holds GPIO8 low; vibration can be added back later.
+
+  - name: ai_button
+    type: button
+    sub_type: gpio
+    version: default
+    config:
+      active_level: 0
+      enable_power_save: false
+      disable_pull: false
+      long_press_time: 2000
+      short_press_time: 100
+    peripherals:
+      - name: gpio_ai_button
+
+  - name: boot_button
+    type: button
+    sub_type: gpio
+    version: default
+    config:
+      active_level: 0
+      enable_power_save: false
+      disable_pull: false
+      long_press_time: 2000
+      short_press_time: 100
+    peripherals:
+      - name: gpio_boot_button
+
+  # Not wired up yet (Espressif's versions: espressif/esp_boards 0.7.3, esp_mosaico):
+  # - left-slot DVP camera (needs the USB-JTAG pad release on GPIO33)
+  # - BQ27220 battery gauge, BMI270/BMM150 motion sensors, SPI NAND, interaction module

@@ -1,0 +1,11 @@
+Tessera
+Copyright 2026 Shubhdeep Sarkar
+
+This project includes or builds on:
+
+- ESP-Claw (https://github.com/espressif/esp-claw), Copyright Espressif Systems (Shanghai) CO LTD,
+  Apache License 2.0. Included as a git submodule in third_party/esp-claw.
+- LVGL (https://github.com/lvgl/lvgl), MIT License. Included as a git submodule in third_party/lvgl.
+- firmware/boards/esp_mosaico/: adapted from Espressif's esp_boards component (esp_mosaico board,
+  version 0.7.3). usb_hs_console/ is Espressif code under Apache-2.0; parts of setup_device.c are
+  adapted from Espressif code under LicenseRef-Espressif-Modified-MIT.
