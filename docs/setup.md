@@ -87,28 +87,54 @@ file, the model name, `response_format=json`.
 All on the device, in its settings storage (the `nvs` partition). Nothing is in the repo, and the log
 never prints a key, a password or the network name.
 
-| Setting | Where it lives | How to set it |
-|---|---|---|
-| Wi-Fi name and password | ESP-Claw's namespace `app`, read only | Saved by the factory ESP-Claw firmware |
-| Claude API key | ESP-Claw's namespace `app`, read only | Saved by the factory ESP-Claw firmware |
-| Groq API key | Tessera's namespace `tessera` | `key groq <key>` on the device console |
+| Setting | Where it lives |
+|---|---|
+| Wi-Fi name and password | Tessera's namespace `tessera`, else ESP-Claw's `app` |
+| Claude API key | Tessera's namespace `tessera`, else ESP-Claw's `app` |
+| Groq API key | Tessera's namespace `tessera` |
 
-Tessera reads the Wi-Fi and Claude key that ESP-Claw saved, and never changes them. Commands for setting
-them from Tessera's own console don't exist yet.
+For each setting, Tessera uses its own saved value if there is one, and otherwise what the factory
+ESP-Claw firmware saved, which it reads but never changes. So a board that ran ESP-Claw works with
+nothing entered, and a fresh board can be set up from scratch.
 
-**Setting the Groq key.** Type it yourself, in your own terminal, never through an AI agent or a chat:
+### The setup page
 
-```bash
-screen /dev/cu.usbmodem2101 115200
-```
+Enter settings with **[tools/setup.html](../tools/setup.html)**, a single page you open on your Mac in
+**Chrome or Edge** (Safari and Firefox can't talk to USB devices):
+
+1. Plug the board in, and close `screen` or anything else using its port.
+2. Open `tools/setup.html` in Chrome and click **Connect board**. Pick the Mosaico.
+3. Type a value. **Show** lets you check it; the page warns if it doesn't look right.
+4. **Save.** The field empties, and the setting shows "saved in tessera" with its length.
+
+**Clear** buttons remove Tessera's value, so the board falls back to ESP-Claw's, if any. Wi-Fi reconnects
+by itself after a change, and a new Claude key is used from the next question on.
+
+What the page does with your values:
+
+- It talks to the board only over the USB cable (Web Serial). Nothing goes over Wi-Fi or the internet.
+- It can't load or send anything on the network: its Content Security Policy blocks every request. It's
+  one file, so you can read all of it.
+- It never stores a value, and the board's replies never contain one: only "saved", "missing" or
+  "cleared" and a length.
+
+### The console, underneath
+
+The page sends plain text commands over the USB console. You can type them yourself in a serial terminal
+(`screen /dev/cu.usbmodem2101 115200`), but the page is easier: the console doesn't echo what you type,
+and the log keeps scrolling.
 
 | Command | What it does |
 |---|---|
-| `key status` | Says whether a Groq key is saved, and its length |
-| `key groq <key>` | Saves the key (starts with `gsk_`). The console doesn't echo it |
-| `key groq clear` | Deletes it |
+| `key status` | Each setting: saved in Tessera, from ESP-Claw, or missing, and its length |
+| `wifi name <name>` | Saves the network name and reconnects |
+| `wifi password` | The **next line** is the password; an empty line cancels |
+| `wifi clear` | Deletes Tessera's Wi-Fi name and password |
+| `key claude <key>`, `key groq <key>` | Saves that key |
+| `key claude clear`, `key groq clear` | Deletes that key |
 
-Leave `screen` with Ctrl-A, K, Y.
+The console only takes these commands. Anything else is refused without being printed, and **nothing typed
+into it is ever sent to Claude**: questions come from the AI button only.
 
 ## Flashing and recovery
 

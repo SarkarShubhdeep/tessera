@@ -192,3 +192,21 @@ the board, **fake values only** (a made-up Claude key and Wi-Fi name), then `cle
   - The fields were emptied after Save, and too-short values couldn't be saved.
   - Only `setup:` replies were shown; the `mic` and `sysmon` log lines were ignored.
   - It set DTR and RTS on once, together, and never changed them.
+
+## On the board, second flash (2026-11-22)
+
+Flashed (app slot only), verified. Checked from the Mac with **fake values only**, then cleared:
+
+| Step | Result |
+|---|---|
+| `key status` | Wi-Fi and Claude "from ESP-Claw", Groq "saved in tessera" |
+| A typed question | `not a command (17 chars); nothing sent`: didn't reach Claude |
+| A loose `sk-ant-…` line | `not a command (39 chars); nothing sent` |
+| `key claude <fake>` | Saved; storage 355 → 358 used entries of 756 |
+| `wifi name <fake>` | Saved; Wi-Fi left the real network and retried the fake one |
+| `wifi password` + fake | Saved, but **the new settings were refused**: `sta is connecting, cannot set config` |
+| `wifi clear`, `key claude clear` | Both cleared, `key status` back to ESP-Claw's values, but Wi-Fi was **stuck on the fake network** (same error) |
+
+**Bug found:** the Wi-Fi driver refuses new settings while it is connecting or retrying. `net_apply` now
+stops Wi-Fi, sets the new name and password, and starts it again. A restart also recovers, because boot
+reads the settings fresh. Fixed in the next build, which still needs to be flashed and checked.

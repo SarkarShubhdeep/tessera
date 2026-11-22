@@ -74,21 +74,23 @@ esp_err_t net_apply(void)
     memcpy(cfg.sta.password, pass, strnlen(pass, sizeof(cfg.sta.password)));
     memset(name, 0, sizeof(name));
     memset(pass, 0, sizeof(pass));
+    /* The driver refuses new settings while it is connecting or retrying (ESP_ERR_WIFI_STATE, found on
+     * the board), so stop it first. s_started = false keeps the disconnect handler from reconnecting. */
+    if (s_started) {
+        ESP_LOGI(TAG, "reconnecting with the new wifi settings");
+        s_started = false;
+        esp_wifi_stop();
+        xEventGroupClearBits(s_ev, UP_BIT);
+    }
     esp_err_t err = esp_wifi_set_config(WIFI_IF_STA, &cfg);
     memset(&cfg, 0, sizeof(cfg));
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "wifi settings not accepted (%s)", esp_err_to_name(err));
         return err;
     }
-    if (!s_started) {
-        s_started = true;
-        ESP_LOGI(TAG, "starting wifi (network from %s)", src == KEY_SRC_TESSERA ? "tessera" : "ESP-Claw");
-        return esp_wifi_start();   /* STA_START connects */
-    }
-    ESP_LOGI(TAG, "reconnecting with the new wifi settings");
-    xEventGroupClearBits(s_ev, UP_BIT);
-    esp_wifi_disconnect();   /* the disconnect handler connects again, with the new settings */
-    return ESP_OK;
+    ESP_LOGI(TAG, "starting wifi (network from %s)", src == KEY_SRC_TESSERA ? "tessera" : "ESP-Claw");
+    s_started = true;
+    return esp_wifi_start();   /* STA_START connects */
 }
 
 bool net_wait(int timeout_ms)
