@@ -31,6 +31,8 @@ extern const char ROOTS_PEM[] asm("_binary_anthropic_roots_pem_start");
 #define BODY_MAX   (512 * 1024)   /* web search replies are bigger (review 08); PSRAM, allocated once */
 #define RESUMES    2              /* pause_turn: times to let a long search finish */
 #define SEARCHES   3              /* web searches per question at most */
+#define FETCHES    1              /* pages opened per question at most */
+#define FETCH_TOKENS 6000         /* cap on a fetched page's text */
 
 static const char *SYSTEM_PROMPT =
     "You are Tessera, the assistant on a small square 480x480 screen with one button. "
@@ -48,7 +50,10 @@ static const char *SYSTEM_PROMPT =
     "You can search the web with web_search. Use it only when the answer needs live or recent facts "
     "(weather, news, scores, prices, opening hours, events), not for things you already know. Search as "
     "little as you can. When you used a search, put the source's name (the site) in the plate's source or "
-    "detail field. If the user's place is given, \"here\" and \"near me\" mean that place.";
+    "detail field. If the user's place is given, \"here\" and \"near me\" mean that place.\n"
+    "For current conditions (the weather now, live scores, a price now), if the search results don't give the "
+    "current figure, open the most relevant result with web_fetch to read it. Never present a forecast as the "
+    "current value; if you can't find the current figure, say so and give what you found.";
 
 static const char *TOOL_JSON =
     "{\"name\":\"show_plate\","
@@ -105,40 +110,62 @@ static cJSON *answer_plate(const char *text, const char *label)
     return p;
 }
 
-/* The request, as cJSON so a paused search can be resumed by appending Claude's turn. */
+/* The request, as cJSON so a paused search can be resumed by appending Claude's turn.
+ *
+ * Order for prompt caching (review 08): tools, then the fixed instructions with the cache marker, then what
+ * changes per question (the time and the place) in a second system block, then the question. Everything up to
+ * the marker is byte-for-byte the same on every request, so after the first question it is read from
+ * Anthropic's cache at a fraction of the price. */
 static cJSON *build_request(const char *question)
 {
-    /* Instructions start with the local time and the place (review 08). The place is personal: it goes to
-     * Anthropic as part of the request, and is never logged. */
-    char now[160], place[KEYS_MAX + 1];
-    clock_line(now, sizeof(now));
-    size_t n = strlen(now) + strlen(SYSTEM_PROMPT) + sizeof(place) + 64;
-    char *sys = malloc(n);
-    if (keys_get(KEY_PLACE, place, sizeof(place)) != KEY_SRC_NONE) {
-        snprintf(sys, n, "%s The user is in %s.\n%s", now, place, SYSTEM_PROMPT);
-    } else {
-        snprintf(sys, n, "%s The user's place isn't set; ask them to set it if they ask about \"here\".\n%s",
-                 now, SYSTEM_PROMPT);
-    }
-    memset(place, 0, sizeof(place));
-
     cJSON *req = cJSON_CreateObject();
     cJSON_AddStringToObject(req, "model", MODEL);
     cJSON_AddNumberToObject(req, "max_tokens", 16000);
     cJSON *oc = cJSON_AddObjectToObject(req, "output_config");
     cJSON_AddStringToObject(oc, "effort", "low");
     cJSON_AddStringToObject(req, "fallbacks", "default");
-    cJSON_AddStringToObject(req, "system", sys);
-    memset(sys, 0, n);
-    free(sys);
+
+    /* Tools, always in this order. */
     cJSON *tools = cJSON_AddArrayToObject(req, "tools");
     cJSON_AddItemToArray(tools, cJSON_Parse(TOOL_JSON));
-    /* Anthropic's server-side web search: it runs and filters the search; the board never visits a site. */
+    /* Anthropic's server-side web tools: Anthropic searches and fetches; the board never visits a site. */
     cJSON *ws = cJSON_CreateObject();
     cJSON_AddStringToObject(ws, "type", "web_search_20260209");
     cJSON_AddStringToObject(ws, "name", "web_search");
     cJSON_AddNumberToObject(ws, "max_uses", SEARCHES);
     cJSON_AddItemToArray(tools, ws);
+    cJSON *wf = cJSON_CreateObject();
+    cJSON_AddStringToObject(wf, "type", "web_fetch_20260209");
+    cJSON_AddStringToObject(wf, "name", "web_fetch");
+    cJSON_AddNumberToObject(wf, "max_uses", FETCHES);
+    cJSON_AddNumberToObject(wf, "max_content_tokens", FETCH_TOKENS);
+    cJSON_AddItemToArray(tools, wf);
+
+    /* System: the fixed part (cached), then the time and place (not cached: they change). The place is
+     * personal: it goes to Anthropic in the request and is never logged. */
+    cJSON *sys = cJSON_AddArrayToObject(req, "system");
+    cJSON *fixed = cJSON_CreateObject();
+    cJSON_AddStringToObject(fixed, "type", "text");
+    cJSON_AddStringToObject(fixed, "text", SYSTEM_PROMPT);
+    cJSON *cc = cJSON_AddObjectToObject(fixed, "cache_control");
+    cJSON_AddStringToObject(cc, "type", "ephemeral");   /* 5-minute cache */
+    cJSON_AddItemToArray(sys, fixed);
+
+    char now[160], place[KEYS_MAX + 1], line[sizeof(now) + sizeof(place) + 96];
+    clock_line(now, sizeof(now));
+    if (keys_get(KEY_PLACE, place, sizeof(place)) != KEY_SRC_NONE) {
+        snprintf(line, sizeof(line), "%s The user is in %s.", now, place);
+    } else {
+        snprintf(line, sizeof(line), "%s The user's place isn't set; ask them to set it if they ask about \"here\".",
+                 now);
+    }
+    cJSON *varying = cJSON_CreateObject();
+    cJSON_AddStringToObject(varying, "type", "text");
+    cJSON_AddStringToObject(varying, "text", line);
+    cJSON_AddItemToArray(sys, varying);
+    memset(place, 0, sizeof(place));
+    memset(line, 0, sizeof(line));
+
     cJSON *tc = cJSON_AddObjectToObject(req, "tool_choice");
     cJSON_AddStringToObject(tc, "type", "auto");
     cJSON *msgs = cJSON_AddArrayToObject(req, "messages");
@@ -165,12 +192,12 @@ static cJSON *plate_from_response(int status, cJSON *r)
         const char *stop = cJSON_GetStringValue(cJSON_GetObjectItem(r, "stop_reason"));
         cJSON *usage = cJSON_GetObjectItem(r, "usage");
         cJSON *stu = cJSON_GetObjectItem(usage, "server_tool_use");
-        ESP_LOGI(TAG, "stop %s, tokens in %d / out %d, web searches %d", stop ? stop : "?",
-                 (int)cJSON_GetNumberValue(cJSON_GetObjectItem(usage, "input_tokens")),
-                 (int)cJSON_GetNumberValue(cJSON_GetObjectItem(usage, "output_tokens")),
-                 cJSON_IsNumber(cJSON_GetObjectItem(stu, "web_search_requests"))
-                     ? (int)cJSON_GetNumberValue(cJSON_GetObjectItem(stu, "web_search_requests"))
-                     : 0);
+#define NUM(o, k) (cJSON_IsNumber(cJSON_GetObjectItem((o), (k))) ? (int)cJSON_GetNumberValue(cJSON_GetObjectItem((o), (k))) : 0)
+        ESP_LOGI(TAG, "stop %s, tokens in %d / out %d, cache read %d / written %d, web searches %d, fetches %d",
+                 stop ? stop : "?", NUM(usage, "input_tokens"), NUM(usage, "output_tokens"),
+                 NUM(usage, "cache_read_input_tokens"), NUM(usage, "cache_creation_input_tokens"),
+                 NUM(stu, "web_search_requests"), NUM(stu, "web_fetch_requests"));
+#undef NUM
         if (stop && strcmp(stop, "refusal") == 0) {
             plate = answer_plate("Claude declined that request.", "Claude");
         } else {

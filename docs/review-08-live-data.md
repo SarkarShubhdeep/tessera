@@ -163,3 +163,41 @@ showed the right local time.
    sent with every request. A search question used 22,000. **Prompt caching** would bill the unchanging
    part (system prompt and tools) at a fraction of the price after the first question. That means moving
    the time line, which changes every minute, after the cache breakpoint.
+
+## Change after the first flash: prompt caching and web fetch (approved 2026-11-22)
+
+**1. Prompt caching (the cost).**
+- The request is reordered so everything that never changes comes first: the tools (`show_plate`, web
+  search, web fetch), then the fixed instructions as a `system` block carrying
+  `"cache_control": {"type": "ephemeral"}`. Tools come before the system prompt, so that marker covers
+  both, including the web tools' own instructions.
+- What changes per question goes **after** the marker, so it doesn't break the cache: the time line and
+  the place, in a second `system` block, then the question.
+- **Lifetime: 5 minutes.** Questions are sporadic but come in bursts. A cache read costs 5% of the normal
+  input price on Claude Opus 5.5. A write costs 1.25×, so the worst case (every question more than 5
+  minutes after the last) is 25% more on the fixed part. A 1-hour cache would make the worst case 2×.
+- The log adds `cache read N / written N` from `usage`, so the board check shows whether it works.
+
+**2. Web fetch (current weather).**
+- Add Anthropic's `{"type": "web_fetch_20260209", "name": "web_fetch", "max_uses": 1,
+  "max_content_tokens": 6000}`. It can only open a page that already appeared in the conversation (a
+  search result), and only one per question, with the page's text capped at about 6,000 tokens.
+- The prompt adds: for current conditions (weather now, live scores, prices now), open the most relevant
+  result with `web_fetch` if the search snippets don't have the current figure; never present a forecast
+  as the current value.
+- The board still never visits a site: Anthropic fetches the page.
+
+**Measure on the board:** input tokens and cache numbers for two questions in a row without a search,
+and the time, tokens and result for "what's the temperature here right now?".
+
+### Build audit, second build (2026-11-22)
+
+- Builds with no warnings. App `0x1d1e30`.
+- **Request check on the Mac** (the board's `build_request`, compiled with stand-ins):
+  - `tools`: `show_plate`, `web_search` (3 uses at most), `web_fetch` (1 use, 6,000 tokens).
+  - `system`: two blocks. The fixed instructions carry `cache_control`; the second block has the time and
+    the place.
+  - For two different questions a minute apart, the request is **byte-for-byte identical up to the cache
+    marker** (the first 2,772 bytes). The time and the place come only after it.
+- Logs and storage unchanged from the first build. The new log fields are counts only: cache read and
+  written, searches, fetches.
