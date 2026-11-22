@@ -210,3 +210,17 @@ Flashed (app slot only), verified. Checked from the Mac with **fake values only*
 **Bug found:** the Wi-Fi driver refuses new settings while it is connecting or retrying. `net_apply` now
 stops Wi-Fi, sets the new name and password, and starts it again. A restart also recovers, because boot
 reads the settings fresh. Fixed in the next build, which still needs to be flashed and checked.
+
+## On the board, third flash (2026-11-22): works
+
+Flashed the Wi-Fi fix (app slot only), verified. Same check, fake values only:
+
+| Step | Result |
+|---|---|
+| `wifi name <fake>` | Saved; Wi-Fi stopped and started again on the fake network (and kept retrying it, as expected) |
+| `wifi password` + fake | Saved; stopped and started again with the new password, no error |
+| `wifi clear` | Back to ESP-Claw's network: **connected in 1.9 s**, −64 dBm, no restart |
+| `key status` | Everything back to ESP-Claw's values; Groq key still saved in Tessera |
+
+Not yet done on the board: the setup page itself against the real board (the owner opens it in Chrome),
+and a voice question after the change.
