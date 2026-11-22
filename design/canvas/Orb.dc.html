@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>The orb</title>
+<title>The pixel orb</title>
 <script src="./support.js"></script>
 </head>
 <body>
@@ -12,65 +12,90 @@
 <style>
 body{margin:0}
 a{color:#FF5A1F}a:hover{color:#F2EEE8}
-@keyframes ts-breathe{from{transform:scale(.91)}to{transform:scale(1)}}
-@keyframes ts-pulse{from{transform:scale(.83)}to{transform:scale(1.06)}}
-@keyframes ts-bar{from{height:28px}to{height:120px}}
-@keyframes ts-fade{from{opacity:.2}to{opacity:1}}
-.ts-breathe{animation:ts-breathe 2.4s ease-in-out infinite alternate}
-.ts-pulse{animation:ts-pulse .26s ease-out infinite alternate}
-.ts-bar{animation:ts-bar .36s ease-in-out infinite alternate}
-.ts-fade{animation:ts-fade .42s ease-in-out infinite alternate}
-@media (prefers-reduced-motion:reduce){.ts-breathe,.ts-pulse,.ts-bar,.ts-fade{animation:none}}
+.ts-disc{position:absolute;left:50%;top:50%;width:176px;height:176px;margin:-88px 0 0 -88px}
+.ts-px{position:absolute;width:14px;height:14px;background:#FF5A1F}
+@keyframes ts-breathe{from{transform:scale(.92)}to{transform:scale(1)}}
+@keyframes ts-twinkle{0%,88%,100%{opacity:1}93%{opacity:.15}}
+@keyframes ts-ripple{0%,60%,100%{transform:translate(0,0) scale(1)}25%{transform:translate(calc(var(--ux) * 12px),calc(var(--uy) * 12px)) scale(.7)}}
+@keyframes ts-spin{to{transform:rotate(360deg)}}
+@keyframes ts-shatter{0%,12%,88%,100%{transform:translate(0,0) rotate(0)}38%,62%{transform:translate(calc(var(--ux) * (26px + var(--k) * 34px)),calc(var(--uy) * (26px + var(--k) * 34px))) rotate(90deg) scale(.8)}}
+@keyframes ts-beat{from{transform:scale(.5)}to{transform:scale(1)}}
+.s-idle .ts-disc{animation:ts-breathe 2.4s ease-in-out infinite alternate}
+.s-idle .ts-px{animation:ts-twinkle 3.6s linear infinite;animation-delay:calc(var(--k) * -3.6s)}
+.s-listen .ts-px{animation:ts-ripple .9s cubic-bezier(.16,1,.3,1) infinite;animation-delay:calc(var(--r) * 60ms)}
+.s-think .ts-disc{animation:ts-spin 3.2s cubic-bezier(.65,0,.35,1) infinite}
+.s-think .ts-px{animation:ts-shatter 3.2s cubic-bezier(.65,0,.35,1) infinite;animation-delay:calc(var(--k) * -.25s)}
+.s-speak .ts-px{animation:ts-beat .26s ease-in-out infinite alternate;animation-delay:calc(var(--r) * -45ms)}
+@media (prefers-reduced-motion:reduce){.ts-disc,.ts-px{animation:none!important}}
 </style>
 </helmet>
 <div style="width: 2120px; height: 620px; box-sizing: border-box; padding: 40px; background: #0A0908; color: #F2EEE8; font-family: 'Geist Mono', ui-monospace, monospace; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 40px;">
   <div style="display: flex; flex-direction: column; gap: 16px;">
-    <div style="position: relative; width: 480px; height: 480px; background: #000000;">
+    <div class="s-idle" style="position: relative; width: 480px; height: 480px; background: #000000; overflow: hidden;">
       <span style="position: absolute; top: 40px; left: 0; right: 0; text-align: center; font-size: 24px; letter-spacing: 2px; color: #6B655E;">09:41</span>
-      <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;"><span class="ts-breathe" style="width: 176px; height: 176px; border-radius: 50%; background: #FF5A1F;"></span></div>
+      <div class="ts-disc">
+        <sc-for list="{{pixels}}" as="p" hint-placeholder-count="97"><span class="ts-px" style="left: {{p.x}}px; top: {{p.y}}px; --ux: {{p.ux}}; --uy: {{p.uy}}; --r: {{p.r}}; --k: {{p.k}};"></span></sc-for>
+      </div>
       <span style="position: absolute; bottom: 70px; left: 0; right: 0; text-align: center; font-size: 24px;">Tap to talk</span>
     </div>
-    <div style="display: flex; justify-content: space-between; font-size: 13px; letter-spacing: 2px; text-transform: uppercase;"><span>Idle</span><span style="color: #8D867E;">Breathes · 2.4 s</span></div>
+    <div style="display: flex; justify-content: space-between; font-size: 13px; letter-spacing: 2px; text-transform: uppercase;"><span>Idle</span><span style="color: #8D867E;">Breathes · pixels flicker</span></div>
   </div>
   <div style="display: flex; flex-direction: column; gap: 16px;">
-    <div style="position: relative; width: 480px; height: 480px; background: #000000;">
+    <div class="s-listen" style="position: relative; width: 480px; height: 480px; background: #000000; overflow: hidden;">
       <span style="position: absolute; top: 40px; left: 0; right: 0; text-align: center; font-size: 24px; letter-spacing: 2px; color: #6B655E;">09:41</span>
-      <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 14px;">
-        <span class="ts-bar" style="width: 22px; height: 40px; border-radius: 11px; background: #FF5A1F; animation-duration: .32s;"></span>
-        <span class="ts-bar" style="width: 22px; height: 40px; border-radius: 11px; background: #FF5A1F; animation-duration: .36s; animation-delay: 90ms;"></span>
-        <span class="ts-bar" style="width: 22px; height: 40px; border-radius: 11px; background: #FF5A1F; animation-duration: .40s; animation-delay: 180ms;"></span>
-        <span class="ts-bar" style="width: 22px; height: 40px; border-radius: 11px; background: #FF5A1F; animation-duration: .44s; animation-delay: 270ms;"></span>
-        <span class="ts-bar" style="width: 22px; height: 40px; border-radius: 11px; background: #FF5A1F; animation-duration: .48s; animation-delay: 360ms;"></span>
+      <div class="ts-disc">
+        <sc-for list="{{pixels}}" as="p" hint-placeholder-count="97"><span class="ts-px" style="left: {{p.x}}px; top: {{p.y}}px; --ux: {{p.ux}}; --uy: {{p.uy}}; --r: {{p.r}}; --k: {{p.k}};"></span></sc-for>
       </div>
       <span style="position: absolute; bottom: 70px; left: 0; right: 0; text-align: center; font-size: 24px;">Listening</span>
     </div>
-    <div style="display: flex; justify-content: space-between; font-size: 13px; letter-spacing: 2px; text-transform: uppercase;"><span>Listening</span><span style="color: #8D867E;">Level bars · out of phase</span></div>
+    <div style="display: flex; justify-content: space-between; font-size: 13px; letter-spacing: 2px; text-transform: uppercase;"><span>Listening</span><span style="color: #8D867E;">Ripples out, ring by ring</span></div>
   </div>
   <div style="display: flex; flex-direction: column; gap: 16px;">
-    <div style="position: relative; width: 480px; height: 480px; background: #000000;">
+    <div class="s-think" style="position: relative; width: 480px; height: 480px; background: #000000; overflow: hidden;">
       <span style="position: absolute; top: 40px; left: 0; right: 0; text-align: center; font-size: 24px; letter-spacing: 2px; color: #6B655E;">09:41</span>
-      <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 22px;">
-        <span class="ts-fade" style="width: 30px; height: 30px; border-radius: 50%; background: #FF5A1F;"></span>
-        <span class="ts-fade" style="width: 30px; height: 30px; border-radius: 50%; background: #FF5A1F; animation-delay: 180ms;"></span>
-        <span class="ts-fade" style="width: 30px; height: 30px; border-radius: 50%; background: #FF5A1F; animation-delay: 360ms;"></span>
+      <div class="ts-disc">
+        <sc-for list="{{pixels}}" as="p" hint-placeholder-count="97"><span class="ts-px" style="left: {{p.x}}px; top: {{p.y}}px; --ux: {{p.ux}}; --uy: {{p.uy}}; --r: {{p.r}}; --k: {{p.k}};"></span></sc-for>
       </div>
       <span style="position: absolute; bottom: 70px; left: 0; right: 0; text-align: center; font-size: 24px;">Thinking</span>
     </div>
-    <div style="display: flex; justify-content: space-between; font-size: 13px; letter-spacing: 2px; text-transform: uppercase;"><span>Thinking</span><span style="color: #8D867E;">Dots in turn · 420 ms</span></div>
+    <div style="display: flex; justify-content: space-between; font-size: 13px; letter-spacing: 2px; text-transform: uppercase;"><span>Thinking</span><span style="color: #8D867E;">Shatters · revolves · reforms</span></div>
   </div>
   <div style="display: flex; flex-direction: column; gap: 16px;">
-    <div style="position: relative; width: 480px; height: 480px; background: #000000;">
+    <div class="s-speak" style="position: relative; width: 480px; height: 480px; background: #000000; overflow: hidden;">
       <span style="position: absolute; top: 40px; left: 0; right: 0; text-align: center; font-size: 24px; letter-spacing: 2px; color: #6B655E;">09:41</span>
-      <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;"><span class="ts-pulse" style="width: 176px; height: 176px; border-radius: 50%; background: #FF5A1F;"></span></div>
+      <div class="ts-disc">
+        <sc-for list="{{pixels}}" as="p" hint-placeholder-count="97"><span class="ts-px" style="left: {{p.x}}px; top: {{p.y}}px; --ux: {{p.ux}}; --uy: {{p.uy}}; --r: {{p.r}}; --k: {{p.k}};"></span></sc-for>
+      </div>
       <span style="position: absolute; bottom: 70px; left: 0; right: 0; text-align: center; font-size: 24px;">Speaking</span>
     </div>
-    <div style="display: flex; justify-content: space-between; font-size: 13px; letter-spacing: 2px; text-transform: uppercase;"><span>Speaking</span><span style="color: #8D867E;">Quick pulse · 260 ms</span></div>
+    <div style="display: flex; justify-content: space-between; font-size: 13px; letter-spacing: 2px; text-transform: uppercase;"><span>Speaking</span><span style="color: #8D867E;">Beats from the centre out</span></div>
   </div>
 </div>
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":2120,"height":620}}'>
 class Component extends DCLogic {
-  renderVals() { return {}; }
+  renderVals() {
+    /* An 11 x 11 grid of 14 px squares on a 16 px pitch (176 px), kept where it falls inside the circle.
+       ux/uy point outward from the centre; r is the ring; k is a stable per-pixel random for stagger. */
+    if (!this._pixels) {
+      const n = 11, pitch = 16, c = (n - 1) / 2, out = [];
+      for (let j = 0; j < n; j++) {
+        for (let i = 0; i < n; i++) {
+          const dx = i - c, dy = j - c, d = Math.sqrt(dx * dx + dy * dy);
+          if (d > c + 0.45) continue;
+          const len = d || 1;
+          const k = ((i * 73 + j * 151 + i * j * 7) % 97) / 97;
+          out.push({
+            x: i * pitch, y: j * pitch,
+            ux: (dx / len).toFixed(3), uy: (dy / len).toFixed(3),
+            r: Math.round(d), k: k.toFixed(3)
+          });
+        }
+      }
+      this._pixels = out;
+    }
+    return { pixels: this._pixels };
+  }
 }
 </script>
 </body>
