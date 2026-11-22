@@ -77,3 +77,7 @@ Common agent-UI practice, which the ring follows:
 - presence shouldn't block content: Siri moved to an edge glow
   ([9to5Mac](https://9to5mac.com/2024/11/03/new-apple-intelligence-siri-looks-different-works-the-same/)).
   Not used yet; a candidate for when a plate is shown while the agent speaks.
+
+**Revised 2026-11-22:** on the board, listening and speaking looked the same (both spiked outward).
+Listening now opens the ring out and points its spikes inward (sound coming in); speaking stays tight
+and points outward (sound going out). Direction, not just size, tells the two apart.

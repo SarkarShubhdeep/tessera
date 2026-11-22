@@ -816,14 +816,14 @@ footer p { color: var(--muted-foreground); font-size: 0.875rem; max-width: 60ch;
   }
   function Presence(canvas, stage) {
     this.c = canvas; this.stage = stage; this.ctx = canvas.getContext("2d");
-    this.R = 64; this.seg = 16; this.len = []; this.alpha = []; this.w = 0;
+    this.R = 64; this.inw = 0; this.seg = 16; this.len = []; this.alpha = []; this.w = 0;
     for (var i = 0; i < SEG; i++) { this.len.push(12); this.alpha.push(1); }
   }
   Presence.prototype.targets = function (st, t, i) {
     var L = 12, A = 1, lvl;
     if (st === "listening") {
-      lvl = 0.18 + 0.82 * voice(t * 0.9, 1.7);
-      L = 12 + 64 * lvl * (0.35 + 0.65 * Math.abs(Math.sin(i * 1.9 + t * 5.3)));
+      lvl = 0.12 + 0.88 * voice(t * 0.9, 1.7);   /* your voice comes in: spikes point inward */
+      L = 12 + 52 * lvl * (0.35 + 0.65 * Math.abs(Math.sin(i * 1.9 + t * 5.3)));
     } else if (st === "speaking") {
       lvl = 0.12 + 0.88 * voice(t * 1.1, 0.3);
       var m = Math.min(i, SEG - i) / (SEG / 2); /* symmetric around the top */
@@ -842,9 +842,10 @@ footer p { color: var(--muted-foreground); font-size: 0.875rem; max-width: 60ch;
     if (W !== this.w) { c.width = c.height = this.w = W; }
     var st = this.stage.getAttribute("data-state");
     var k = REDUCED ? 1 : 1 - Math.exp(-dt * 14), ka = REDUCED ? 1 : 1 - Math.exp(-dt * 40);
-    var R = st === "listening" ? 74 : st === "speaking" ? 70 : 64;
+    var R = st === "listening" ? 100 : st === "speaking" ? 70 : 64;   /* listening: the ring opens out */
     if (st === "idle" && !REDUCED) R += 3 * Math.sin(t * 2 * Math.PI / 3);
     this.R += (R - this.R) * k;
+    this.inw += ((st === "listening" ? 1 : 0) - this.inw) * k;
     /* Idle: segments widen until they touch, a solid ring; any activity opens it into segments. */
     this.seg += ((st === "idle" ? 16.9 : 12) - this.seg) * k;
     var ctx = this.ctx, s = W / 480;
@@ -859,7 +860,8 @@ footer p { color: var(--muted-foreground); font-size: 0.875rem; max-width: 60ch;
       ctx.save();
       ctx.rotate(i / SEG * Math.PI * 2 - Math.PI / 2);
       ctx.globalAlpha = this.alpha[i];
-      ctx.fillRect(this.R, -this.seg / 2, this.len[i], this.seg);
+      /* Outward the segment runs from R out; inward its outer end stays and the extra length grows in. */
+      ctx.fillRect(this.R - this.inw * (this.len[i] - 12), -this.seg / 2, this.len[i], this.seg);
       ctx.restore();
     }
   };
@@ -979,7 +981,7 @@ footer p { color: var(--muted-foreground); font-size: 0.875rem; max-width: 60ch;
 
   /* ---------- orb states row ---------- */
   var statesEl = document.getElementById("states");
-  [["idle", "Nearly still"], ["listening", "Follows your voice"], ["thinking", "A light circling"], ["speaking", "Follows its voice"]].forEach(function (s) {
+  [["idle", "Nearly still"], ["listening", "Opens out, spikes point in"], ["thinking", "A light circling"], ["speaking", "Follows its voice"]].forEach(function (s) {
     var f = document.createElement("figure");
     f.innerHTML = '<div class="screen"></div><figcaption><span class="label">' + s[0] + '</span><span>' + s[1] + '</span></figcaption>';
     statesEl.appendChild(f);

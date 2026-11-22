@@ -94,6 +94,7 @@ typedef struct {
 
 static seg_t s_seg[SEG_N];
 static float s_radius = 64.0f;
+static float s_inward;             /* 0 = segments grow outward, 1 = inward (listening) */
 static float s_level;              /* smoothed audio level, 0..1 */
 static uint8_t s_level_in;         /* latest ui_set_level() */
 static uint32_t s_last_ms;
@@ -120,18 +121,19 @@ static void ring_tick(lv_timer_t *t)
     float radius = 64.0f, width = 12.0f;
     switch (s_state) {
     case UI_STATE_IDLE:      radius = 64.0f + 3.0f * sinf(tm * 2.0f * RING_PI / 3.0f); width = 16.9f; break;
-    case UI_STATE_LISTENING: radius = 74.0f; break;
+    case UI_STATE_LISTENING: radius = 100.0f; break;   /* the ring opens out: wide gaps between segments */
     case UI_STATE_SPEAKING:  radius = 70.0f; break;
     default: break;
     }
     s_radius = approach(s_radius, radius, k);
+    s_inward = approach(s_inward, s_state == UI_STATE_LISTENING ? 1.0f : 0.0f, k);
 
     float head = fmodf(tm * 0.85f, 1.0f) * SEG_N;
     for (int i = 0; i < SEG_N; i++) {
         float len = 12.0f, a = 1.0f;
-        if (s_state == UI_STATE_LISTENING) {          /* your voice: uneven, like a live mic */
-            float lvl = 0.18f + 0.82f * s_level;
-            len = 12.0f + 64.0f * lvl * (0.35f + 0.65f * fabsf(sinf(i * 1.9f + tm * 5.3f)));
+        if (s_state == UI_STATE_LISTENING) {          /* your voice comes in: spikes point inward, uneven */
+            float lvl = 0.12f + 0.88f * s_level;
+            len = 12.0f + 52.0f * lvl * (0.35f + 0.65f * fabsf(sinf(i * 1.9f + tm * 5.3f)));
         } else if (s_state == UI_STATE_SPEAKING) {    /* its voice: symmetric about the top */
             float lvl = 0.12f + 0.88f * s_level;
             float m = (float)(i < SEG_N - i ? i : SEG_N - i) / (SEG_N / 2);
@@ -166,7 +168,10 @@ static void ring_draw(lv_event_t *e)
     for (int i = 0; i < SEG_N; i++) {
         float ang = (float)i / SEG_N * 2.0f * RING_PI - RING_PI / 2.0f;
         float ux = cosf(ang), uy = sinf(ang);
-        float r0 = s_radius * scale, r1 = (s_radius + s_seg[i].len) * scale;
+        /* Outward, a segment runs from the radius out; inward, its outer end stays put and the extra
+         * length grows toward the centre. s_inward morphs between the two. */
+        float inner = s_radius - s_inward * (s_seg[i].len - 12.0f);
+        float r0 = inner * scale, r1 = (inner + s_seg[i].len) * scale;
         d.p1.x = (int32_t)lroundf(cx + ux * r0);
         d.p1.y = (int32_t)lroundf(cy + uy * r0);
         d.p2.x = (int32_t)lroundf(cx + ux * r1);

@@ -86,9 +86,9 @@ not a shape swap. This follows common agent-UI practice (see decision 008).
 | State | Shape | Motion |
 |---|---|---|
 | Idle | Solid ring: segments widen until they touch | Breathes ±3 units over 3 s |
-| Listening | Segments open; radius 74 | Lengths follow **your** voice (microphone level), uneven like a live mic |
+| Listening | The ring opens out (radius 100): segments spread far apart | Spikes point **inward**, following **your** voice (microphone level): sound coming in |
 | Thinking | Thin ring, radius 64 | A lit arc circles once every 1.2 s; the rest dims to 22% |
-| Speaking | Segments open; radius 70 | Lengths follow **the agent's** voice (speaker level), symmetric |
+| Speaking | Tight ring, radius 70 | Spikes point **outward**, following **the agent's** voice (speaker level), symmetric: sound going out |
 
 Transitions ease toward each state's targets (about 70 ms time constant; brightness 25 ms, so the
 thinking arc stays bright). The engine feeds the audio level through `ui_set_level()` (0–255): the
