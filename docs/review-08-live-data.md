@@ -1,6 +1,6 @@
 # Review 08: live data (a real clock, your place, and web search)
 
-**Status:** approved 2026-11-22, built and audited (below). Not flashed yet.
+**Status:** approved 2026-11-22, flashed (app slot only) and working, with two follow-ups (results at the end).
 **Build:** step 07 plus live data. Today Claude can't answer "what's the weather" or "what time is it": it
 has no web access and is never told the date, and the ring's clock is the simulator's fake 09:41. This
 step sets the board's clock, tells Claude the local time and (if you set one) your place, and lets Claude
@@ -141,3 +141,25 @@ restore.
   type before you save it, as with the keys.
 - The board still waits up to 10 s for the first time sync before its first question, so Claude gets the
   date.
+
+## On the board (2026-11-22)
+
+Flashed (app slot only), verified, settings intact. Before setting a zone, the time zone came from
+ESP-Claw's saved default (5 characters), so the clock could be off. The owner then set the time zone and
+place from the phone setup page (`place saved (10 chars)`, `time zone saved (51 chars)`), and the clock
+showed the right local time.
+
+| Question (as Groq heard it) | Web searches | Claude | Release to plate | Input tokens | Result |
+|---|---|---|---|---|---|
+| "What is the time right now and what is the temperature?" | 1 | 9.9 s | 11.8 s | 22,270 | The time, plus today's forecast (high, rain this afternoon). "No live temp found": it didn't make one up |
+| "What place am I in right now?" | 0 | 2.0 s | 3.6 s | 6,724 | The place that was set |
+
+**Follow-ups found on the board:**
+1. **Current weather isn't found.** One search returned the forecast but not the current temperature.
+   Options: add Anthropic's `web_fetch_20260209` tool so Claude can open a weather page, and/or tell it
+   to look for current conditions specifically.
+2. **Every question costs more.** With the web search tool in the request, even a question that doesn't
+   search uses about 6,700 input tokens, against about 1,000 before. That's the tool's own instructions,
+   sent with every request. A search question used 22,000. **Prompt caching** would bill the unchanging
+   part (system prompt and tools) at a fraction of the price after the first question. That means moving
+   the time line, which changes every minute, after the cache breakpoint.
