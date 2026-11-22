@@ -2,6 +2,10 @@
 
 **An interface for small AI devices where the agent designs the screen, and the device draws it natively.**
 
+**[sarkarshubhdeep.github.io/tessera](https://sarkarshubhdeep.github.io/tessera/)**: the landing page, with a live device you can operate.
+
+![Tessera landing page: "The agent designs the screen. The device draws it." next to a Mosaico showing a timer plate](design/screenshots/hero-dark.png)
+
 Tessera is open-source firmware for square-screen ESP32 boards, starting with Espressif's
 [ESP-Mosaico](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32s31/esp-mosaico/user_guide.html)
 (ESP32-S31, 480×480 AMOLED, touch, mic, speaker, one orange AI button).
@@ -10,8 +14,6 @@ Tessera is open-source firmware for square-screen ESP32 boards, starting with Es
 > **plate**, composed by the agent from a small design system and rendered at 60 fps.
 
 **Status: early design.** Nothing here is ready to flash yet. See [Roadmap](#roadmap).
-
-![The first orb states in the simulator: idle, listening, thinking, speaking](design/first-orb-states.png)
 
 ## The idea
 
@@ -27,6 +29,29 @@ Tessera tries something else:
 - **One button, a few gestures.** Hold the AI button to talk; tap it to act on what's on screen.
   Swipe between plates, with haptic detents. Flip the device face-down to mute.
 - **Flat and sharp.** True-black AMOLED, one accent colour, sharp corners. No rounded cards.
+
+## Screenshots
+
+**Plates.** What the agent sends (left) is exactly what the device draws (right).
+
+![Plate explorer: the show_plate JSON for a temperature next to the rendered plate, 21 °C in pixel numerals](design/screenshots/plates.png)
+
+**One button, a few gestures.** The landing page has a device you can operate: hold the AI button to talk, swipe between plates, long-press to pin, flip to mute.
+
+![Interaction grammar next to the interactive device showing a four-minute tea timer](design/screenshots/interaction.png)
+
+**The orb.** Four states of light: idle, listening, thinking, speaking.
+
+![The four orb states](design/screenshots/orb-states.png)
+
+<p>
+  <img src="design/screenshots/hero-light.png" alt="The landing page in its light theme" width="64%">
+  <img src="design/screenshots/phone.png" alt="The landing page at phone width" width="24%">
+</p>
+
+The same orb states in the Mac simulator, rendered by LVGL:
+
+![The orb states in the simulator](design/first-orb-states.png)
 
 ## How it's built
 

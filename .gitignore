@@ -16,3 +16,4 @@ backups/
 .vscode/
 .idea/
 *.rgb565
+_site/
