@@ -8,5 +8,5 @@
  * Needs the on-board I2C bus (board_touch_init) first. */
 esp_err_t mic_start(void);
 
-/* Latest level, 0-255 (about -60 dBFS = 0, -15 dBFS = 255). */
+/* Latest level, 0-255 (-47 dBFS = 0, -20 dBFS = 255; tuned on the board). */
 uint8_t mic_level(void);

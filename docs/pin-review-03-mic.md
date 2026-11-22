@@ -1,6 +1,6 @@
 # Pin review 03: the microphone
 
-**Status:** built and audited; waiting for approval. Nothing has been flashed.
+**Status:** approved 2026-11-22, flashed (app slot only) and running (results at the end).
 **Build:** step 03b plus the microphone. While the ring is listening, its spikes follow the real
 microphone level. Speaking still uses the stand-in (nothing plays sound yet). Still no speaker, motor,
 Wi-Fi or modules.
@@ -51,3 +51,14 @@ sound from the speaker, or a mismatched pin means hold POWER and restore.
 - `esp_codec_dev` 1.6.2: its GPIO helper (`audio_codec_gpio.c`) is not linked into the build at all
   (checked in the link map). The ES8311 driver touches the amplifier pin only when given both a pin and
   a GPIO interface; it gets neither.
+
+## On the board (2026-11-22)
+
+The spikes follow your voice. No buzz, no sound from the speaker. Pin check: MCLK 54, BCLK 37 and WS 49
+carry the I2S signals, DIN 40 is an input, GPIO45 is still 0 (amp off), and GPIO52 is untouched.
+One harmless error line at start: `i2s_channel_disable ... not been enabled yet`, from the codec library
+stopping the channel before its first start.
+
+Loudest level per second over 43 seconds: quiet room −49 to −51 dBFS, speech mostly −36 to −19,
+one peak at −0.4 (very close to the mic). The level mapping was −60…−15 dBFS, so silence still moved
+the spikes a little; it is now −47…−20 (in the next build).

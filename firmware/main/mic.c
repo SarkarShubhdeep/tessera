@@ -22,8 +22,8 @@ static const char *TAG = "mic";
 #define FRAME_MS    20
 #define FRAMES      (RATE_HZ * FRAME_MS / 1000)
 #define GAIN_DB     30.0f
-#define FLOOR_DB    (-60.0f)
-#define CEIL_DB     (-15.0f)
+#define FLOOR_DB    (-47.0f)   /* measured: a quiet room reads -49 to -51 dBFS */
+#define CEIL_DB     (-20.0f)   /* measured: normal speech peaks around -36 to -19 */
 
 static esp_codec_dev_handle_t s_dev;
 static volatile uint8_t s_level;
