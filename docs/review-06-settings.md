@@ -1,6 +1,6 @@
 # Review 06: Wi-Fi and the Claude key from Tessera's console
 
-**Status:** approved 2026-11-22, built and audited (below). Not flashed yet.
+**Status:** approved 2026-11-22, flashed (app slot only) and working (results below).
 **Build:** step 05b plus settings. Today Tessera can only use the Wi-Fi and Claude key that the factory
 ESP-Claw firmware saved. This step lets the owner set them from Tessera's own console, the same way as
 the Groq key, so a board that never ran ESP-Claw can be set up. Issue
@@ -222,5 +222,5 @@ Flashed the Wi-Fi fix (app slot only), verified. Same check, fake values only:
 | `wifi clear` | Back to ESP-Claw's network: **connected in 1.9 s**, −64 dBm, no restart |
 | `key status` | Everything back to ESP-Claw's values; Groq key still saved in Tessera |
 
-Not yet done on the board: the setup page itself against the real board (the owner opens it in Chrome),
-and a voice question after the change.
+**Setup page on the real board:** the owner opened `tools/setup.html` in Chrome, connected to the board
+and used it. Everything worked.
