@@ -1,4 +1,5 @@
-/* Tessera on the ESP-Mosaico, step 03b: screen, touch and the AI button.
+/* Tessera on the ESP-Mosaico, step 05a: screen, touch, AI button, mic level, and Claude over Wi-Fi.
+ * A line typed into the USB console is sent to Claude; the answer arrives as a plate (review 04).
  *
  * Runs the same surface as the Mac simulator (ui/). Tap the ring to cycle its states, swipe through
  * five example plates, hold the AI button to "talk" (a stand-in until the engine exists). LVGL's
@@ -16,6 +17,10 @@
 #include "freertos/task.h"
 #include "lvgl.h"
 #include "mic.h"
+#include "claude.h"
+#include "net.h"
+#include "settings.h"
+#include <string.h>
 #include "ui.h"
 
 static const char *TAG = "tessera";
@@ -149,6 +154,75 @@ static void ai_button_poll(lv_timer_t *t)
     was_down = down;
 }
 
+/* ---------- Claude: console questions in, plates out ---------- */
+
+/* Reads lines from the USB console. Any line is a question. */
+static void console_task(void *arg)
+{
+    (void)arg;
+    char line[256];
+    int n = 0;
+    while (1) {
+        int c = getchar();
+        if (c == EOF) {
+            clearerr(stdin);
+            vTaskDelay(pdMS_TO_TICKS(20));
+            continue;
+        }
+        if (c == '\r' || c == '\n') {
+            line[n] = '\0';
+            if (n > 0) {
+                if (!net_is_up()) {
+                    ESP_LOGW(TAG, "not connected; question dropped");
+                } else if (!claude_ask(line)) {
+                    ESP_LOGW(TAG, "busy; question dropped");
+                }
+            }
+            n = 0;
+        } else if (n < (int)sizeof(line) - 1) {
+            line[n++] = (char)c;
+        }
+    }
+}
+
+/* UI side: think while a request is in flight, draw the plate when it lands. */
+static void claude_poll(lv_timer_t *t)
+{
+    (void)t;
+    static bool was_busy;
+    bool busy = claude_busy();
+    if (busy && !was_busy) {
+        ui_set_state(UI_STATE_THINKING);
+    }
+    was_busy = busy;
+    cJSON *plate = claude_take_plate();
+    if (plate) {
+        ui_show_plate(plate, true);
+        cJSON_Delete(plate);
+    }
+}
+
+static void claude_bring_up(void)
+{
+    static tsr_settings_t st;   /* static: keeps the 400-byte struct off the stack */
+    if (settings_load(&st) != ESP_OK) {
+        ESP_LOGW(TAG, "Claude off: saved settings incomplete");
+        return;
+    }
+    if (!settings_key_is_claude(&st)) {
+        ESP_LOGW(TAG, "Claude off: the saved key isn't a Claude API key, so it isn't sent anywhere");
+        return;
+    }
+    if (net_connect(st.wifi_ssid, st.wifi_password, 20000) != ESP_OK) {
+        ESP_LOGW(TAG, "Wi-Fi not up yet; still retrying in the background");
+    }
+    memset(st.wifi_password, 0, sizeof(st.wifi_password));
+    ESP_ERROR_CHECK(claude_start(st.api_key));
+    memset(st.api_key, 0, sizeof(st.api_key));
+    xTaskCreate(console_task, "console", 4096, NULL, 3, NULL);
+    ESP_LOGI(TAG, "ready: type a question into this console and press Enter");
+}
+
 void app_main(void)
 {
     ESP_LOGI(TAG, "Tessera screen-only build");
@@ -176,6 +250,9 @@ void app_main(void)
 
     lv_timer_create(ring_level, 33, NULL);
     lv_timer_create(ai_button_poll, 20, NULL);
+    lv_timer_create(claude_poll, 50, NULL);
+    lv_timer_handler();   /* draw the ring before the network comes up */
+    claude_bring_up();
 
     while (1) {
         uint32_t wait = lv_timer_handler();
