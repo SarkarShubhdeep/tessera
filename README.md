@@ -20,8 +20,8 @@ Tessera is open-source firmware for square-screen ESP32 boards, starting with Es
 Most AI gadgets put a chatbot on a tiny screen: walls of text, app grids, notification drawers.
 Tessera tries something else:
 
-- **An orb, not a face.** The device's presence is abstract light that breathes, listens, thinks
-  and speaks.
+- **A ring, not a face.** The device's presence is a ring of square segments that rests, follows
+  your voice, thinks and speaks.
 - **Plates, not cards.** When you ask something, the agent doesn't answer with a paragraph. It
   picks a plate type (a timer, a number, a list, a choice, a photo) and fills it in. The device
   renders it natively, always on-brand, always fast. The agent never runs code to draw.
@@ -40,18 +40,18 @@ Tessera tries something else:
 
 ![Interaction grammar next to the interactive device showing a four-minute tea timer](design/screenshots/interaction.png)
 
-**The orb.** Four states of light: idle, listening, thinking, speaking.
+**The ring.** Four states: idle, listening, thinking, speaking.
 
-![The four orb states](design/screenshots/orb-states.png)
+![The ring in its four states](design/screenshots/orb-states.png)
 
 <p>
   <img src="design/screenshots/hero-light.png" alt="The landing page in its light theme" width="64%">
   <img src="design/screenshots/phone.png" alt="The landing page at phone width" width="24%">
 </p>
 
-The same orb states in the Mac simulator, rendered by LVGL:
+The same ring in the Mac simulator, drawn by the firmware's own LVGL code:
 
-![The orb states in the simulator](design/first-orb-states.png)
+![The ring in the simulator](design/gallery/orb-sheet.png)
 
 ## How it's built
 
@@ -61,7 +61,7 @@ The same orb states in the Mac simulator, rendered by LVGL:
 | **Engine** | The agent loop, Claude API, tools, MCP and memory: a slimmed-down [ESP-Claw](https://github.com/espressif/esp-claw) core (Claude only, no chat-app integrations). | `third_party/esp-claw` (pinned) |
 | **Boards** | Pin maps and drivers per board, via Espressif's Board Manager. | `firmware/boards/` |
 
-Why C and not Rust, why an orb, why "plates": see [docs/decisions.md](docs/decisions.md).
+Why C and not Rust, why a ring, why "plates": see [docs/decisions.md](docs/decisions.md).
 
 ## Try the simulator (macOS)
 
@@ -74,7 +74,7 @@ brew install sdl2 cmake ninja   # if needed
 cmake -S . -B build -G Ninja && ninja -C build && ./build/tessera_sim
 ```
 
-Swipe left (drag or arrow keys) through the example plates in `sim/plates/`; click the orb to cycle its states.
+Swipe left (drag or arrow keys) through the example plates in `sim/plates/`; click the ring to cycle its states.
 
 ## Docs
 

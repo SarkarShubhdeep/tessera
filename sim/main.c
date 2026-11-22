@@ -8,6 +8,7 @@
  */
 #include <SDL.h>
 #include <dirent.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -66,6 +67,23 @@ static int default_plates(char **out, int max)
     return n;
 }
 
+/* Stand-in audio level: speech-like syllables in phrases, the same curve as the landing page.
+ * On the board the engine feeds the real microphone and speaker levels instead. */
+static float voice_level(void)
+{
+    float s = lv_tick_get() / 1000.0f;
+    float syl = fmaxf(0.0f, sinf(s * 6.1f)) * (0.55f + 0.45f * sinf(s * 1.3f));
+    float grit = 0.5f + 0.5f * sinf(s * 17.0f);
+    float phrase = sinf(s * 0.7f) > -0.85f ? 1.0f : 0.2f;
+    return fminf(1.0f, (syl * 0.85f + grit * 0.15f * syl) * phrase);
+}
+
+static void fake_voice(lv_timer_t *t)
+{
+    (void)t;
+    ui_set_level((uint8_t)(voice_level() * 255.0f));
+}
+
 static void pump(uint32_t ms)
 {
     uint32_t until = SDL_GetTicks() + ms;
@@ -119,6 +137,7 @@ int main(int argc, char **argv)
     lv_indev_t *kb = lv_sdl_keyboard_create();
 
     ui_create();
+    lv_timer_create(fake_voice, 33, NULL);
     lv_group_t *g = lv_group_create();
     lv_group_add_obj(g, lv_screen_active());
     lv_indev_set_group(kb, g);
@@ -139,6 +158,14 @@ int main(int argc, char **argv)
         for (int st = 0; st < UI_STATE_COUNT; st++) {
             ui_set_state((ui_state_t)st);
             pump(700);
+            /* Voice states: wait for a loud moment so the still shows the ring mid-syllable. */
+            for (int w = 0; (st == UI_STATE_LISTENING || st == UI_STATE_SPEAKING) && w < 800; w++) {
+                if (voice_level() > 0.65f) {
+                    pump(60);
+                    break;
+                }
+                pump(10);
+            }
             if (snap(disp, snap_dir, STATES[st])) {
                 return 1;
             }

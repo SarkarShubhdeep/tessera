@@ -841,7 +841,7 @@ footer p { color: var(--muted-foreground); font-size: 0.875rem; max-width: 60ch;
     var dpr = Math.min(window.devicePixelRatio || 1, 2), W = Math.round(rect.width * dpr);
     if (W !== this.w) { c.width = c.height = this.w = W; }
     var st = this.stage.getAttribute("data-state");
-    var k = REDUCED ? 1 : 1 - Math.exp(-dt * 14);
+    var k = REDUCED ? 1 : 1 - Math.exp(-dt * 14), ka = REDUCED ? 1 : 1 - Math.exp(-dt * 40);
     var R = st === "listening" ? 74 : st === "speaking" ? 70 : 64;
     if (st === "idle" && !REDUCED) R += 3 * Math.sin(t * 2 * Math.PI / 3);
     this.R += (R - this.R) * k;
@@ -855,7 +855,7 @@ footer p { color: var(--muted-foreground); font-size: 0.875rem; max-width: 60ch;
     for (var i = 0; i < SEG; i++) {
       var tg = this.targets(st, REDUCED ? 1.3 : t, i);
       this.len[i] += (tg[0] - this.len[i]) * k;
-      this.alpha[i] += (tg[1] - this.alpha[i]) * k;
+      this.alpha[i] += (tg[1] - this.alpha[i]) * ka;
       ctx.save();
       ctx.rotate(i / SEG * Math.PI * 2 - Math.PI / 2);
       ctx.globalAlpha = this.alpha[i];

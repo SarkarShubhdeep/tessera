@@ -1,4 +1,4 @@
-/* Tessera surface: the orb and a deck of plates. Device-independent: the same files compile for the
+/* Tessera surface: the presence ring and a deck of plates. Device-independent: the same files compile for the
  * Mac simulator and the board. The platform layer creates the display and input first. */
 #pragma once
 
@@ -18,6 +18,10 @@ void ui_create(void);
 
 /* Orb state (the engine's `state` event). Shows the orb if a plate is up. */
 void ui_set_state(ui_state_t state);
+
+/* Live audio level, 0-255: the microphone while listening, the speaker while speaking. The engine
+ * calls this ~30 times a second; the ring's segment lengths follow it. */
+void ui_set_level(uint8_t level);
 
 /* Show a plate (the engine's `plate` event). It becomes the newest plate in the deck. */
 void ui_show_plate(const cJSON *spec, bool animate);

@@ -2,7 +2,7 @@
 
 The Mosaico's 480×480 screen in a window on the Mac: SDL stands in for the AMOLED, the mouse for touch.
 
-- `../ui/` is the real UI code (orb, plates, tokens, fonts). It uses only LVGL, so the same files compile
+- `../ui/` is the real UI code (the ring, plates, tokens, fonts). It uses only LVGL, so the same files compile
   for the board.
 - `plates/` holds example `show_plate` JSON, the same input the agent will send.
 - `main.c` is the Mac-only part.
@@ -19,10 +19,10 @@ The deck loads every plate in `plates/`, or the files you pass:
 ./build/tessera_sim plates/01-timer.json my-plate.json
 ```
 
-It starts on the orb. Swipe left (drag, or the arrow keys) to move through the plates; click the orb to
+It starts on the ring. Swipe left (drag, or the arrow keys) to move through the plates; click the ring to
 cycle its states.
 
-`SNAP_DIR=<folder> ./build/tessera_sim` saves one raw RGB565 frame per orb state and plate, runs a
+`SNAP_DIR=<folder> ./build/tessera_sim` saves one raw RGB565 frame per ring state and plate, runs a
 scripted swipe back through the deck, and exits. Convert a frame with:
 
 ```bash

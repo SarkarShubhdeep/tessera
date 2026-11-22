@@ -90,9 +90,11 @@ not a shape swap. This follows common agent-UI practice (see decision 008).
 | Thinking | Thin ring, radius 64 | A lit arc circles once every 1.2 s; the rest dims to 22% |
 | Speaking | Segments open; radius 70 | Lengths follow **the agent's** voice (speaker level), symmetric |
 
-Transitions ease toward each state's targets (about 70 ms time constant). On the board, listening and
-speaking read the real mic and speaker levels; the landing page uses a speech-like stand-in. The
-ring stays inside a 300 × 300 region.
+Transitions ease toward each state's targets (about 70 ms time constant; brightness 25 ms, so the
+thinking arc stays bright). The engine feeds the audio level through `ui_set_level()` (0–255): the
+mic while listening, the speaker while speaking. The simulator and the landing page use the same
+speech-like stand-in. The ring is one object drawn as 24 flat-ended lines inside a 300 × 300 box,
+so its animation never redraws outside that box, and it stops updating while a plate covers it.
 
 ## Motion
 

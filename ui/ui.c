@@ -1,26 +1,25 @@
 /* Tessera surface: the orb (presence) and the plate deck.
  *
  * Speed rules for the board's QSPI display: true black background, solid shapes, and continuous
- * animation only inside small regions (the orb lives in a fixed 200 x 200 box). Full-screen moves
+ * animation only inside small regions (the ring lives in a fixed 300 x 300 box). Full-screen moves
  * (plate enter, swipe) are short: see TS_MS_* in tokens.h. */
 #include "ui.h"
 
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "plates.h"
 #include "tokens.h"
 
-#define ORB_SIZE    176
-#define BAR_COUNT   5
-#define DOT_COUNT   3
+#define SEG_N       24     /* ring segments */
+#define RING_BOX    300    /* the ring never draws outside this box (canvas units) */
 #define DECK_MAX    8
+#define RING_PI     3.14159265f
 
 static lv_obj_t *s_scr;
 static lv_obj_t *s_orb_layer;
-static lv_obj_t *s_orb;
-static lv_obj_t *s_bars[BAR_COUNT];
-static lv_obj_t *s_dots[DOT_COUNT];
+static lv_obj_t *s_ring;
 static lv_obj_t *s_status;
 static lv_obj_t *s_clock;
 static lv_obj_t *s_plate;          /* the plate on screen, or NULL */
@@ -37,28 +36,9 @@ static const char *const STATUS_TEXT[UI_STATE_COUNT] = {
 
 /* ---------- animation helpers ---------- */
 
-static void anim_size(void *o, int32_t v) { lv_obj_set_size(o, v, v); }
-static void anim_height(void *o, int32_t v) { lv_obj_set_height(o, v); }
-static void anim_bg_opa(void *o, int32_t v) { lv_obj_set_style_bg_opa(o, (lv_opa_t)v, 0); }
 static void anim_opa(void *o, int32_t v) { lv_obj_set_style_opa(o, (lv_opa_t)v, 0); }
 static void anim_tx(void *o, int32_t v) { lv_obj_set_style_translate_x(o, v, 0); }
 static void anim_ty(void *o, int32_t v) { lv_obj_set_style_translate_y(o, v, 0); }
-
-static void loop(lv_obj_t *obj, lv_anim_exec_xcb_t cb, int32_t from, int32_t to, uint32_t ms, uint32_t delay,
-                 lv_anim_path_cb_t path)
-{
-    lv_anim_t a;
-    lv_anim_init(&a);
-    lv_anim_set_var(&a, obj);
-    lv_anim_set_exec_cb(&a, cb);
-    lv_anim_set_values(&a, from, to);
-    lv_anim_set_duration(&a, ms);
-    lv_anim_set_delay(&a, delay);
-    lv_anim_set_reverse_duration(&a, ms);
-    lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
-    lv_anim_set_path_cb(&a, path);
-    lv_anim_start(&a);
-}
 
 static void once(lv_obj_t *obj, lv_anim_exec_xcb_t cb, int32_t from, int32_t to, uint32_t ms,
                  lv_anim_path_cb_t path, lv_anim_completed_cb_t done)
@@ -101,16 +81,99 @@ static void draw_detents(void)
     lv_obj_move_foreground(s_detents);
 }
 
-/* ---------- orb ---------- */
+/* ---------- presence: the ring ----------
+ *
+ * 24 square segments around a circle (decision 008). Every state is a set of targets for each
+ * segment's length, width and brightness plus the ring's radius; a 60 Hz timer eases the current
+ * values toward them, so a state change is always a morph, never a swap. Numbers are canvas units
+ * (480 wide), the same as the landing page's ring. */
 
-static void stop_orb(void)
+typedef struct {
+    float len, w, a;
+} seg_t;
+
+static seg_t s_seg[SEG_N];
+static float s_radius = 64.0f;
+static float s_level;              /* smoothed audio level, 0..1 */
+static uint8_t s_level_in;         /* latest ui_set_level() */
+static uint32_t s_last_ms;
+static lv_timer_t *s_ring_timer;
+
+void ui_set_level(uint8_t level) { s_level_in = level; }
+
+static float approach(float cur, float target, float k) { return cur + (target - cur) * k; }
+
+static void ring_tick(lv_timer_t *t)
 {
-    lv_anim_delete(s_orb, NULL);
-    for (int i = 0; i < BAR_COUNT; i++) {
-        lv_anim_delete(s_bars[i], NULL);
+    (void)t;
+    uint32_t now = lv_tick_get();
+    float dt = (float)lv_tick_diff(now, s_last_ms) / 1000.0f;
+    s_last_ms = now;
+    if (dt > 0.1f) {
+        dt = 0.1f;
     }
-    for (int i = 0; i < DOT_COUNT; i++) {
-        lv_anim_delete(s_dots[i], NULL);
+    float k = 1.0f - expf(-dt * 14.0f);    /* ~70 ms time constant */
+    float ka = 1.0f - expf(-dt * 40.0f);   /* brightness is quicker, so the thinking arc stays bright */
+    float tm = (float)(now % 600000u) / 1000.0f;
+    s_level = approach(s_level, s_level_in / 255.0f, 1.0f - expf(-dt * 25.0f));
+
+    float radius = 64.0f, width = 12.0f;
+    switch (s_state) {
+    case UI_STATE_IDLE:      radius = 64.0f + 3.0f * sinf(tm * 2.0f * RING_PI / 3.0f); width = 16.9f; break;
+    case UI_STATE_LISTENING: radius = 74.0f; break;
+    case UI_STATE_SPEAKING:  radius = 70.0f; break;
+    default: break;
+    }
+    s_radius = approach(s_radius, radius, k);
+
+    float head = fmodf(tm * 0.85f, 1.0f) * SEG_N;
+    for (int i = 0; i < SEG_N; i++) {
+        float len = 12.0f, a = 1.0f;
+        if (s_state == UI_STATE_LISTENING) {          /* your voice: uneven, like a live mic */
+            float lvl = 0.18f + 0.82f * s_level;
+            len = 12.0f + 64.0f * lvl * (0.35f + 0.65f * fabsf(sinf(i * 1.9f + tm * 5.3f)));
+        } else if (s_state == UI_STATE_SPEAKING) {    /* its voice: symmetric about the top */
+            float lvl = 0.12f + 0.88f * s_level;
+            float m = (float)(i < SEG_N - i ? i : SEG_N - i) / (SEG_N / 2);
+            len = 12.0f + 56.0f * lvl * (0.4f + 0.6f * fabsf(sinf(m * 5.1f + tm * 7.7f)));
+        } else if (s_state == UI_STATE_THINKING) {    /* a lit arc circling, the one non-audio motion */
+            float d = fmodf(head - i + SEG_N, SEG_N);
+            a = fmaxf(0.22f, 1.0f - d / 13.0f);
+            len = d < 2.5f ? 22.0f : 12.0f;
+        }
+        s_seg[i].len = approach(s_seg[i].len, len, k);
+        s_seg[i].w = approach(s_seg[i].w, width, k);
+        s_seg[i].a = approach(s_seg[i].a, a, ka);
+    }
+    if (!lv_obj_has_flag(s_orb_layer, LV_OBJ_FLAG_HIDDEN)) {
+        lv_obj_invalidate(s_ring);
+    }
+}
+
+/* Each segment is a thick line with flat ends: one anti-aliased rotated rectangle. */
+static void ring_draw(lv_event_t *e)
+{
+    lv_layer_t *layer = lv_event_get_layer(e);
+    lv_area_t c;
+    lv_obj_get_coords(s_ring, &c);
+    float scale = (float)lv_obj_get_width(s_ring) / RING_BOX;
+    float cx = c.x1 + lv_area_get_width(&c) / 2.0f;
+    float cy = c.y1 + lv_area_get_height(&c) / 2.0f;
+
+    lv_draw_line_dsc_t d;
+    lv_draw_line_dsc_init(&d);
+    d.color = TS_ACCENT;
+    for (int i = 0; i < SEG_N; i++) {
+        float ang = (float)i / SEG_N * 2.0f * RING_PI - RING_PI / 2.0f;
+        float ux = cosf(ang), uy = sinf(ang);
+        float r0 = s_radius * scale, r1 = (s_radius + s_seg[i].len) * scale;
+        d.p1.x = (int32_t)lroundf(cx + ux * r0);
+        d.p1.y = (int32_t)lroundf(cy + uy * r0);
+        d.p2.x = (int32_t)lroundf(cx + ux * r1);
+        d.p2.y = (int32_t)lroundf(cy + uy * r1);
+        d.width = (int32_t)lroundf(s_seg[i].w * scale);
+        d.opa = (lv_opa_t)lroundf(s_seg[i].a * 255.0f);
+        lv_draw_line(layer, &d);
     }
 }
 
@@ -127,39 +190,9 @@ void ui_set_state(ui_state_t state)
         draw_detents();
     }
     show(s_orb_layer, true);
+    lv_timer_resume(s_ring_timer);
     s_state = state;
-    stop_orb();
     lv_label_set_text(s_status, STATUS_TEXT[state]);
-
-    show(s_orb, state == UI_STATE_IDLE || state == UI_STATE_SPEAKING);
-    for (int i = 0; i < BAR_COUNT; i++) {
-        show(s_bars[i], state == UI_STATE_LISTENING);
-    }
-    for (int i = 0; i < DOT_COUNT; i++) {
-        show(s_dots[i], state == UI_STATE_THINKING);
-    }
-
-    switch (state) {
-    case UI_STATE_IDLE: /* slow breathing */
-        loop(s_orb, anim_size, TS_PX(ORB_SIZE - 16), TS_PX(ORB_SIZE), 2400, 0, lv_anim_path_ease_in_out);
-        break;
-    case UI_STATE_LISTENING: /* level bars out of phase */
-        for (int i = 0; i < BAR_COUNT; i++) {
-            loop(s_bars[i], anim_height, TS_PX(28), TS_PX(120 - (i % 2) * 30), 320 + i * 40, i * 90,
-                 lv_anim_path_ease_in_out);
-        }
-        break;
-    case UI_STATE_THINKING: /* dots in turn */
-        for (int i = 0; i < DOT_COUNT; i++) {
-            loop(s_dots[i], anim_bg_opa, LV_OPA_20, LV_OPA_COVER, 420, i * 180, lv_anim_path_ease_in_out);
-        }
-        break;
-    case UI_STATE_SPEAKING: /* quick pulse */
-        loop(s_orb, anim_size, TS_PX(ORB_SIZE - 30), TS_PX(ORB_SIZE + 10), 260, 0, lv_anim_path_ease_out);
-        break;
-    default:
-        break;
-    }
 }
 
 /* ---------- plates and the deck ---------- */
@@ -189,7 +222,7 @@ static void remove_plate(bool animate, int dir)
 static void put_plate(const cJSON *spec, bool animate, int dir)
 {
     remove_plate(animate && dir != 0, dir);
-    stop_orb();
+    lv_timer_pause(s_ring_timer);   /* the ring is hidden under a plate: no work */
     show(s_orb_layer, false);
     s_plate = ts_plate_create(s_scr, spec);
     if (animate) {
@@ -276,18 +309,6 @@ static void clock_tick(lv_timer_t *t)
 
 /* ---------- build ---------- */
 
-static lv_obj_t *shape(lv_obj_t *parent, int32_t w, int32_t h, int32_t radius)
-{
-    lv_obj_t *o = lv_obj_create(parent);
-    lv_obj_remove_style_all(o);
-    lv_obj_set_size(o, TS_PX(w), TS_PX(h));
-    lv_obj_set_style_radius(o, radius == LV_RADIUS_CIRCLE ? radius : TS_PX(radius), 0);
-    lv_obj_set_style_bg_color(o, TS_ACCENT, 0);
-    lv_obj_set_style_bg_opa(o, LV_OPA_COVER, 0);
-    lv_obj_remove_flag(o, LV_OBJ_FLAG_CLICKABLE);
-    return o;
-}
-
 void ui_create(void)
 {
     s_scr = lv_screen_active();
@@ -311,23 +332,18 @@ void ui_create(void)
     lv_timer_create(clock_tick, 1000, NULL);
     clock_tick(NULL);
 
-    /* The stage: a fixed 200 x 200 box, so orb animation never redraws outside it. */
-    lv_obj_t *stage = lv_obj_create(s_orb_layer);
-    lv_obj_remove_style_all(stage);
-    lv_obj_set_size(stage, TS_PX(200), TS_PX(200));
-    lv_obj_align(stage, LV_ALIGN_CENTER, 0, TS_PX(-10));
-    lv_obj_remove_flag(stage, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
-
-    s_orb = shape(stage, ORB_SIZE, ORB_SIZE, LV_RADIUS_CIRCLE);
-    lv_obj_center(s_orb);
-    for (int i = 0; i < BAR_COUNT; i++) {
-        s_bars[i] = shape(stage, 22, 40, 11);
-        lv_obj_align(s_bars[i], LV_ALIGN_CENTER, TS_PX((i - BAR_COUNT / 2) * 36), 0);
+    /* The ring: one object in a fixed 300 x 300 box, so its animation never redraws outside it. */
+    s_ring = lv_obj_create(s_orb_layer);
+    lv_obj_remove_style_all(s_ring);
+    lv_obj_set_size(s_ring, TS_PX(RING_BOX), TS_PX(RING_BOX));
+    lv_obj_align(s_ring, LV_ALIGN_CENTER, 0, TS_PX(-4));
+    lv_obj_remove_flag(s_ring, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_event_cb(s_ring, ring_draw, LV_EVENT_DRAW_MAIN, NULL);
+    for (int i = 0; i < SEG_N; i++) {
+        s_seg[i] = (seg_t){12.0f, 16.9f, 1.0f};
     }
-    for (int i = 0; i < DOT_COUNT; i++) {
-        s_dots[i] = shape(stage, 30, 30, LV_RADIUS_CIRCLE);
-        lv_obj_align(s_dots[i], LV_ALIGN_CENTER, TS_PX((i - DOT_COUNT / 2) * 52), 0);
-    }
+    s_last_ms = lv_tick_get();
+    s_ring_timer = lv_timer_create(ring_tick, 16, NULL);
 
     s_status = lv_label_create(s_orb_layer);
     lv_obj_set_style_text_font(s_status, TS_FONT_SUB, 0);

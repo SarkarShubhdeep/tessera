@@ -4,7 +4,7 @@ Draft, 2026-11-21. This will change as we build.
 
 ```
  ┌──────────────── Surface (Tessera) ────────────────┐
- │  orb · plates · gestures · haptics · sounds         │   C + LVGL 9.5
+ │  ring · plates · gestures · haptics · sounds         │   C + LVGL 9.5
  │  design system (tokens, plate types, motion)        │   same code in sim/ and firmware
  └───────────────▲─────────────────────┬──────────────┘
           events │                     │ intents
@@ -28,7 +28,7 @@ against a fake engine.
 - `state`: idle · listening · thinking · speaking · error
 - `plate`: show a plate (type plus fields, see [design system](design-system.md))
 - `plate_update`: new values for a plate already shown or pinned
-- `level`: microphone or speaker level, for the orb
+- `level`: microphone or speaker level, for the ring (`ui_set_level()`)
 
 **Surface → engine (intents)**
 - `talk_start` / `talk_end`: the AI button is held, then released
