@@ -13,6 +13,7 @@ Everything Tessera uses today, and how to change each part. The reasons behind e
 | Firmware | C, ESP-IDF 6.1, LVGL 9.5 | LVGL is pinned in `third_party/lvgl`; ESP-IDF version in your install |
 | Simulator | The same UI code in an SDL2 window on macOS | `sim/`, see below |
 | Answers | Claude API, `claude-opus-5-5`, effort `low`, with web search | `MODEL` and the `effort` line in `firmware/main/claude.c` |
+| Weather | Open-Meteo (`get_weather` tool) | `weather.c`, `weather_parse.c` |
 | Speech to text | Groq, `whisper-large-v3-turbo` | `URL` and `MODEL` in `firmware/main/groq.c` |
 | Keys and Wi-Fi | On the device, in its settings storage (NVS) | See [Keys and settings](#keys-and-settings) |
 
@@ -82,8 +83,24 @@ Tessera is Claude only ([decision 003](decisions.md#003-claude-only-keep-mcp-202
     question after a gap writes it at 1.25×.
   - A question that searches takes longer (10–35 s) and costs more: each search is billed, plus the
     results it reads.
-- **Not reliable yet: live readings.** Web search finds forecasts and news well, but not a single current
-  temperature. A weather tool backed by a weather service is planned.
+- **Weather has its own tool.** Web search found forecasts but not a reliable current reading (35 s and no
+  answer in review 08), so weather questions go to `get_weather` instead (below).
+
+### Weather: Open-Meteo
+
+For any weather question Claude calls `get_weather`. The board asks [Open-Meteo](https://open-meteo.com) for
+the current conditions and today's and tomorrow's forecast, and Claude makes the plate from the numbers.
+About 6–9 s from letting go of the button to the plate (measured 2026-11-22).
+
+- **No key, no account.** Free for non-commercial use, with credit to Open-Meteo, which the plates give
+  as their source. Check open-meteo.com's terms before any commercial use.
+- **Your place is looked up once** with Open-Meteo's geocoder, and its location is saved on the board
+  (`place location` in `key status`). After that, each weather question sends only the coordinates,
+  rounded to about 1 km. Changing or clearing the place clears the saved location. Neither is ever logged.
+- **Units:** °F, mph and inches for places in the US, °C, km/h and mm elsewhere.
+- **Another city** ("weather in Paris") is looked up by name the same way.
+- **To swap the service:** `firmware/main/weather.c` (the requests) and `weather_parse.c` (reading the
+  answer). Open-Meteo is trusted through its own certificate file, `certs/weather_roots.pem`.
 
 ### Speech to text: Groq
 

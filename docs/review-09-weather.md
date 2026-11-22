@@ -1,6 +1,6 @@
 # Review 09: a weather tool (Open-Meteo), not web search
 
-**Status:** approved 2026-11-22, built and audited (below). Not flashed yet.
+**Status:** approved 2026-11-22, flashed (app slot only) and working (results at the end).
 **Build:** step 08 plus a weather tool. In review 08, asked for the current temperature, Claude made two web
 searches and fetched one page. It took 35 s and still found no single current figure. This step gives
 Claude a `get_weather` tool: the board asks a weather service directly and hands Claude exact numbers.
@@ -135,3 +135,22 @@ restore.
 - **Storage:** writes only in `keys.c`. `geo` is written once by `weather.c` (through `keys_set`) after the
   first lookup, and cleared by `keys.c` whenever the place is saved or cleared.
 - **Pins:** none.
+
+## On the board (2026-11-22)
+
+Flashed (app slot only), verified, settings intact. `place location: missing` at first, as expected.
+Recorded with the questions and plates left out of the capture, so no place name was recorded.
+
+| Question | Weather service calls | Release to plate | Input tokens |
+|---|---|---|---|
+| Current temperature here (first) | place lookup 1.6 s (then saved), forecast 0.8 s | 7.7 s | 414 + 6,843 cache read |
+| Rain tomorrow | forecast 0.8 s | 6.0 s | 447 + 6,843 cache read |
+| A third weather question | forecast 0.8 s | 7.3 s | 415 + 6,843 cache read |
+| Weather in another city | that city's lookup 2.7 s, forecast 0.8 s | 9.1 s | 480 + 6,843 cache read |
+| Two non-weather questions | none | 6.4 s, 5.8 s (10–16 s of speech) | ~140 + 6,843 cache read |
+
+- **Weather in 6–9 s instead of 35.7 s,** with no web searches, so no search fees. Each weather question
+  makes two requests to Claude: one asks for the tool, the other makes the plate.
+- The place was looked up once and saved. The next questions went straight to the forecast.
+- Non-weather questions are unchanged: no `get_weather` call. Their time was mostly transcribing the longer
+  speech; Claude answered in about 3.5 s.
