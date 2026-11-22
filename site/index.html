@@ -1,0 +1,1129 @@
+<title>Tessera</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap">
+<style>
+/* Layout: a 12-column spec sheet on true black; every section is a plate with a mono index label and 1px rules.
+   Dark-first (the product is an AMOLED surface); light theme reads as the printed spec. */
+:root {
+  --background: #000000;
+  --surface: #0a0908;
+  --surface-2: #131110;
+  --foreground: #f2eee8;
+  --muted-foreground: #8d867e;
+  --border: #2a2622;
+  --primary: #ff5a1f;
+  --primary-foreground: #0a0908;
+  --primary-soft: rgba(255, 90, 31, 0.14);
+  --screen: #000000;
+  --screen-ink: #f2eee8;
+  --screen-dim: #6b655e;
+  --screen-rule: #2a2622;
+  --screen-accent: #ff5a1f;
+  --device-shell: #e9e6e1;
+  --device-edge: #c9c4bd;
+  --font-sans: "Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --step--1: 0.8125rem;
+  --step-0: 1rem;
+  --step-1: 1.25rem;
+  --step-2: 1.75rem;
+  --step-3: clamp(2rem, 4vw, 2.75rem);
+  --step-4: clamp(2.6rem, 7vw, 5.25rem);
+  --gutter-l: max(16px, env(safe-area-inset-left, 0px));
+  --gutter-r: max(16px, env(safe-area-inset-right, 0px));
+  --maxw: 1180px;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --background: #f1f0ee; --surface: #fafaf9; --surface-2: #e8e6e3;
+    --foreground: #0c0b0a; --muted-foreground: #5f5a54; --border: #cfcbc5;
+    --primary: #e2470d; --primary-foreground: #ffffff; --primary-soft: rgba(226, 71, 13, 0.10);
+    --device-shell: #f7f6f4; --device-edge: #cfcbc5;
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --background: #f1f0ee; --surface: #fafaf9; --surface-2: #e8e6e3;
+  --foreground: #0c0b0a; --muted-foreground: #5f5a54; --border: #cfcbc5;
+  --primary: #e2470d; --primary-foreground: #ffffff; --primary-soft: rgba(226, 71, 13, 0.10);
+  --device-shell: #f7f6f4; --device-edge: #cfcbc5;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  background: var(--background); color: var(--foreground);
+  font-family: var(--font-sans); font-size: var(--step-0); line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--background); }
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+h1, h2, h3 { text-wrap: balance; margin: 0; letter-spacing: -0.02em; }
+p { margin: 0; }
+code, pre, .mono { font-family: var(--font-mono); }
+
+.wrap { max-width: var(--maxw); margin: 0 auto; padding-left: var(--gutter-l); padding-right: var(--gutter-r); }
+
+/* ---------- shadcn-style primitives, radius 0 ---------- */
+.btn {
+  display: inline-flex; align-items: center; gap: 0.5rem; height: 2.5rem; padding: 0 1rem;
+  font: 600 0.875rem/1 var(--font-sans); border: 1px solid var(--border); background: var(--surface);
+  color: var(--foreground); text-decoration: none; cursor: pointer; border-radius: 0;
+  transition: background 120ms, border-color 120ms, color 120ms; user-select: none; -webkit-user-select: none;
+}
+.btn:hover { background: var(--surface-2); }
+.btn-primary { background: var(--primary); border-color: var(--primary); color: var(--primary-foreground); }
+.btn-primary:hover { background: var(--foreground); border-color: var(--foreground); color: var(--background); }
+.btn-ghost { background: transparent; border-color: transparent; }
+.btn-ghost:hover { background: var(--surface-2); }
+.btn[aria-pressed="true"] { border-color: var(--primary); color: var(--primary); }
+.badge {
+  display: inline-flex; align-items: center; gap: 0.4rem; height: 1.5rem; padding: 0 0.5rem;
+  font: 500 0.6875rem/1 var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase;
+  border: 1px solid var(--border); color: var(--muted-foreground); white-space: nowrap;
+}
+.badge-live { color: var(--primary); border-color: var(--primary); }
+.badge-live::before { content: ""; width: 6px; height: 6px; background: var(--primary); }
+.kbd { font: 500 0.75rem/1 var(--font-mono); padding: 0.2rem 0.4rem; border: 1px solid var(--border); background: var(--surface-2); }
+.label { font: 500 0.75rem/1.2 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted-foreground); }
+
+/* ---------- header ---------- */
+.top {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20;
+  background: color-mix(in srgb, var(--background) 88%, transparent);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+.top .wrap { display: flex; align-items: center; gap: 1.5rem; height: 3.5rem; }
+.mark { display: flex; align-items: center; gap: 0.6rem; font: 800 1.05rem/1 var(--font-sans); letter-spacing: 0.02em; text-decoration: none; }
+.mark-tile { width: 14px; height: 14px; background: var(--primary); }
+.nav { display: flex; gap: 0.25rem; margin-left: auto; }
+.nav a { font: 500 0.8125rem/1 var(--font-mono); text-decoration: none; color: var(--muted-foreground); padding: 0.5rem 0.6rem; }
+.nav a:hover { color: var(--foreground); }
+.theme-btn { width: 2.5rem; padding: 0; justify-content: center; }
+@media (max-width: 860px) { .nav { display: none; } .top .wrap > .btn-primary { margin-left: auto; } }
+
+/* ---------- sections ---------- */
+section { border-bottom: 1px solid var(--border); }
+.sec { padding-block: clamp(3.5rem, 8vw, 6.5rem); display: grid; gap: 2.5rem; }
+.sec-head { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 9fr); gap: 1.5rem; align-items: start; }
+.sec-head h2 { font-size: var(--step-3); font-weight: 700; line-height: 1.05; }
+.sec-head .lede { color: var(--muted-foreground); font-size: var(--step-1); max-width: 60ch; margin-top: 1rem; line-height: 1.45; }
+@media (max-width: 760px) { .sec-head { grid-template-columns: 1fr; gap: 0.75rem; } }
+
+/* ---------- hero ---------- */
+.hero .wrap { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr); gap: clamp(2rem, 5vw, 4rem); align-items: center; padding-block: clamp(3rem, 7vw, 5.5rem); }
+@media (max-width: 900px) { .hero .wrap { grid-template-columns: 1fr; } }
+.hero-copy { display: grid; gap: 1.5rem; min-width: 0; }
+.hero h1 { font-size: var(--step-4); font-weight: 800; line-height: 0.95; letter-spacing: -0.035em; }
+.hero h1 em { font-style: normal; color: var(--primary); }
+.hero .sub { font-size: var(--step-1); color: var(--muted-foreground); max-width: 34ch; line-height: 1.45; }
+.hero-cta { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.hero-meta { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+/* ---------- the device ---------- */
+.device-fig { margin: 0; display: grid; gap: 0.9rem; justify-items: center; min-width: 0; }
+.device {
+  position: relative; width: min(100%, 440px); aspect-ratio: 1 / 1.08; max-width: 100%;
+  background: var(--device-shell); border: 1px solid var(--device-edge);
+  padding: 7% 7% 13% 7%; transition: transform 80ms;
+}
+.device.buzz { animation: buzz 140ms linear; }
+@keyframes buzz { 25% { transform: translateX(-2px); } 50% { transform: translateX(2px); } 75% { transform: translateX(-1px); } }
+.ai-btn {
+  position: absolute; right: -7px; top: 30%; width: 7px; height: 16%; background: var(--primary); border: 0; padding: 0; cursor: pointer;
+}
+.device-foot { position: absolute; left: 7%; right: 7%; bottom: 4.2%; display: flex; justify-content: space-between; align-items: center; }
+.device-foot span { font: 500 0.625rem/1 var(--font-mono); letter-spacing: 0.12em; color: #8d867e; }
+.pills { display: flex; gap: 6px; }
+.pills i { display: block; width: 22px; height: 6px; background: var(--device-edge); }
+
+.screen {
+  position: relative; width: 100%; aspect-ratio: 1; background: var(--screen); overflow: hidden;
+  container-type: inline-size; touch-action: pan-y; cursor: grab;
+}
+.stage { --px: calc(100cqw / 480); position: absolute; inset: 0; color: var(--screen-ink); font-family: var(--font-sans); }
+.layer { position: absolute; inset: 0; transition: opacity 260ms cubic-bezier(.16,1,.3,1), transform 260ms cubic-bezier(.16,1,.3,1); }
+.layer.out { opacity: 0; transform: translateY(calc(var(--px) * 18)); pointer-events: none; }
+.layer.left { opacity: 0; transform: translateX(calc(var(--px) * -60)); pointer-events: none; }
+.layer.right { opacity: 0; transform: translateX(calc(var(--px) * 60)); pointer-events: none; }
+.screen.muted .stage { opacity: 0.18; transition: opacity 300ms; }
+.mute-tag { position: absolute; inset: auto 0 calc(var(--px, 0.2cqw) * 0); display: none; }
+
+/* orb layer (480 canvas units) */
+.orb-wrap { position: absolute; inset: 0; display: grid; place-items: center; }
+.clock { position: absolute; top: calc(var(--px) * 40); left: 0; right: 0; text-align: center; font: 500 calc(var(--px) * 24) / 1 var(--font-mono); color: var(--screen-dim); letter-spacing: 0.04em; }
+.status { position: absolute; bottom: calc(var(--px) * 70); left: 0; right: 0; text-align: center; font: 500 calc(var(--px) * 26) / 1 var(--font-sans); color: var(--screen-ink); }
+.orb { width: calc(var(--px) * 176); height: calc(var(--px) * 176); border-radius: 50%; background: var(--screen-accent); }
+.bars, .dots { display: none; gap: calc(var(--px) * 14); align-items: center; height: calc(var(--px) * 130); }
+.bars i { display: block; width: calc(var(--px) * 22); background: var(--screen-accent); border-radius: calc(var(--px) * 11); height: calc(var(--px) * 40); }
+.dots i { display: block; width: calc(var(--px) * 30); height: calc(var(--px) * 30); border-radius: 50%; background: var(--screen-accent); }
+[data-state="idle"] .orb { animation: breathe 2.4s ease-in-out infinite alternate; }
+[data-state="speaking"] .orb { animation: pulse 0.26s ease-out infinite alternate; }
+[data-state="listening"] .orb, [data-state="thinking"] .orb { display: none; }
+[data-state="listening"] .bars { display: flex; }
+[data-state="thinking"] .dots { display: flex; }
+[data-state="listening"] .bars i { animation: bar 0.36s ease-in-out infinite alternate; }
+.bars i:nth-child(2) { animation-delay: 90ms !important; animation-duration: 0.4s !important; }
+.bars i:nth-child(3) { animation-delay: 180ms !important; animation-duration: 0.44s !important; }
+.bars i:nth-child(4) { animation-delay: 270ms !important; animation-duration: 0.48s !important; }
+.bars i:nth-child(5) { animation-delay: 360ms !important; animation-duration: 0.52s !important; }
+[data-state="thinking"] .dots i { animation: fade 0.42s ease-in-out infinite alternate; }
+.dots i:nth-child(2) { animation-delay: 180ms !important; }
+.dots i:nth-child(3) { animation-delay: 360ms !important; }
+@keyframes breathe { from { transform: scale(0.91); } to { transform: scale(1); } }
+@keyframes pulse { from { transform: scale(0.83); } to { transform: scale(1.06); } }
+@keyframes bar { from { height: calc(var(--px) * 28); } to { height: calc(var(--px) * 120); } }
+@keyframes fade { from { opacity: 0.2; } to { opacity: 1; } }
+
+/* ---------- plates (all sizes in 480-canvas units) ---------- */
+.plate { position: absolute; inset: 0; padding: calc(var(--px) * 36); display: flex; flex-direction: column; color: var(--screen-ink); }
+.p-head { display: flex; justify-content: space-between; align-items: center; font: 500 calc(var(--px) * 17) / 1 var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--screen-dim); padding-bottom: calc(var(--px) * 16); border-bottom: calc(var(--px) * 2) solid var(--screen-rule); }
+.p-head b { color: var(--screen-accent); font-weight: 500; }
+.p-body { flex: 1; display: flex; flex-direction: column; justify-content: center; min-height: 0; }
+.p-foot { display: flex; justify-content: space-between; font: 500 calc(var(--px) * 15) / 1 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--screen-dim); padding-top: calc(var(--px) * 16); border-top: calc(var(--px) * 2) solid var(--screen-rule); }
+.p-foot b { color: var(--screen-ink); font-weight: 500; }
+.p-big { font: 700 calc(var(--px) * 150) / 0.9 var(--font-sans); letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
+.p-big small { font-size: 0.32em; letter-spacing: 0; color: var(--screen-dim); margin-left: calc(var(--px) * 8); }
+.p-sub { font: 500 calc(var(--px) * 24) / 1.3 var(--font-sans); color: var(--screen-dim); margin-top: calc(var(--px) * 14); }
+.p-answer { font: 700 calc(var(--px) * 64) / 1.02 var(--font-sans); letter-spacing: -0.03em; }
+.p-progress { height: calc(var(--px) * 8); background: var(--screen-rule); margin-top: calc(var(--px) * 26); }
+.p-progress i { display: block; height: 100%; background: var(--screen-accent); width: 100%; transition: width 1s linear; }
+.p-list { display: grid; }
+.p-list div { display: grid; grid-template-columns: calc(var(--px) * 110) 1fr; gap: calc(var(--px) * 12); padding: calc(var(--px) * 18) 0; border-bottom: calc(var(--px) * 2) solid var(--screen-rule); font: 600 calc(var(--px) * 28) / 1.15 var(--font-sans); }
+.p-list div span { font: 500 calc(var(--px) * 22) / 1.4 var(--font-mono); color: var(--screen-dim); }
+.p-list div.now span { color: var(--screen-accent); }
+.p-q { font: 700 calc(var(--px) * 44) / 1.05 var(--font-sans); letter-spacing: -0.02em; margin-bottom: calc(var(--px) * 28); }
+.p-opts { display: grid; gap: calc(var(--px) * 12); }
+.p-opts div { padding: calc(var(--px) * 20) calc(var(--px) * 22); border: calc(var(--px) * 2) solid var(--screen-rule); font: 600 calc(var(--px) * 28) / 1 var(--font-sans); display: flex; justify-content: space-between; }
+.p-opts div.on { background: var(--screen-accent); border-color: var(--screen-accent); color: #0a0908; }
+.p-segs { display: grid; grid-template-columns: repeat(10, 1fr); gap: calc(var(--px) * 6); height: calc(var(--px) * 64); margin-top: calc(var(--px) * 26); }
+.p-segs i { background: var(--screen-rule); }
+.p-segs i.on { background: var(--screen-accent); }
+.p-photo { flex: 1; margin-block: calc(var(--px) * 20); background:
+  repeating-linear-gradient(90deg, #1c1917 0 calc(var(--px) * 6), #0f0d0c calc(var(--px) * 6) calc(var(--px) * 12)); display: grid; place-items: center; }
+.p-photo span { font: 500 calc(var(--px) * 18) / 1.3 var(--font-mono); color: var(--screen-dim); text-align: center; letter-spacing: 0.06em; text-transform: uppercase; }
+.pin-flag { position: absolute; top: calc(var(--px) * 12); right: calc(var(--px) * 12); width: calc(var(--px) * 14); height: calc(var(--px) * 14); background: var(--screen-accent); display: none; }
+.plate.pinned .pin-flag { display: block; }
+.detent { position: absolute; left: 50%; bottom: calc(var(--px) * 10); transform: translateX(-50%); display: flex; gap: calc(var(--px) * 8); }
+.detent i { width: calc(var(--px) * 26); height: calc(var(--px) * 4); background: var(--screen-rule); }
+.detent i.on { background: var(--screen-ink); }
+.mute-veil { position: absolute; inset: 0; display: grid; place-items: center; font: 500 calc(var(--px) * 20) / 1 var(--font-mono); letter-spacing: 0.12em; color: var(--screen-dim); opacity: 0; transition: opacity 300ms; pointer-events: none; }
+.screen.muted .mute-veil { opacity: 1; }
+
+.annot { display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; justify-content: center; }
+.annot span { font: 500 0.6875rem/1 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted-foreground); }
+.annot b { color: var(--primary); font-weight: 500; }
+
+/* ---------- contrast list ---------- */
+.contrast { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--border); }
+.contrast > div { padding: 1.5rem; display: grid; gap: 0.75rem; align-content: start; min-width: 0; }
+.contrast > div + div { border-left: 1px solid var(--border); }
+.contrast h3 { font-size: var(--step-1); font-weight: 700; }
+.contrast .was { color: var(--muted-foreground); text-decoration: line-through; text-decoration-color: var(--primary); font: 500 0.8125rem/1.4 var(--font-mono); }
+.contrast p { color: var(--muted-foreground); }
+@media (max-width: 760px) { .contrast { grid-template-columns: 1fr; } .contrast > div + div { border-left: 0; border-top: 1px solid var(--border); } }
+
+/* ---------- flow ---------- */
+.flow { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--border); counter-reset: step; }
+.flow > div { padding: 1.5rem; display: grid; gap: 0.6rem; align-content: start; min-width: 0; position: relative; }
+.flow > div + div { border-left: 1px solid var(--border); }
+.flow .n { font: 700 0.75rem/1 var(--font-mono); color: var(--primary); letter-spacing: 0.08em; }
+.flow h3 { font-size: var(--step-1); font-weight: 700; }
+.flow p { color: var(--muted-foreground); font-size: 0.9375rem; }
+@media (max-width: 860px) { .flow { grid-template-columns: 1fr 1fr; } .flow > div:nth-child(3) { border-left: 0; } .flow > div:nth-child(n+3) { border-top: 1px solid var(--border); } }
+@media (max-width: 520px) { .flow { grid-template-columns: 1fr; } .flow > div + div { border-left: 0; border-top: 1px solid var(--border); } }
+
+/* ---------- plate explorer ---------- */
+.explorer { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); border: 1px solid var(--border); }
+@media (max-width: 860px) { .explorer { grid-template-columns: 1fr; } }
+.tabs { grid-column: 1 / -1; display: flex; overflow-x: auto; border-bottom: 1px solid var(--border); }
+.tab { flex: 0 0 auto; background: transparent; border: 0; border-right: 1px solid var(--border); color: var(--muted-foreground); font: 500 0.8125rem/1 var(--font-mono); padding: 0.9rem 1.1rem; cursor: pointer; }
+.tab[aria-selected="true"] { color: var(--foreground); background: var(--surface); box-shadow: inset 0 -2px 0 var(--primary); }
+.spec { padding: 1.5rem; display: grid; gap: 1rem; align-content: start; min-width: 0; border-right: 1px solid var(--border); }
+@media (max-width: 860px) { .spec { border-right: 0; border-bottom: 1px solid var(--border); } }
+.spec pre { margin: 0; background: var(--surface); border: 1px solid var(--border); padding: 1rem; font-size: 0.8125rem; line-height: 1.6; overflow-x: auto; }
+.tok-k { color: var(--muted-foreground); } .tok-s { color: var(--foreground); } .tok-n { color: var(--primary); }
+.spec p { color: var(--muted-foreground); }
+.render { padding: 1.5rem; display: grid; place-items: center; background: var(--surface); }
+.render .screen { width: min(100%, 360px); cursor: default; }
+
+/* ---------- grammar + playground ---------- */
+.grammar-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2rem; align-items: start; }
+@media (max-width: 900px) { .grammar-grid { grid-template-columns: 1fr; } }
+.grammar { border: 1px solid var(--border); }
+.grammar div { display: grid; grid-template-columns: 11rem minmax(0, 1fr); gap: 1rem; padding: 0.95rem 1.1rem; align-items: baseline; }
+.grammar div + div { border-top: 1px solid var(--border); }
+.grammar dt { font: 500 0.8125rem/1.3 var(--font-mono); color: var(--foreground); }
+.grammar dt b { color: var(--primary); font-weight: 500; }
+.grammar dd { margin: 0; color: var(--muted-foreground); }
+@media (max-width: 520px) { .grammar div { grid-template-columns: 1fr; gap: 0.25rem; } }
+.play { display: grid; gap: 1rem; justify-items: center; }
+.controls { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; }
+.log { font: 500 0.75rem/1.4 var(--font-mono); color: var(--muted-foreground); min-height: 1.4em; text-align: center; }
+.log b { color: var(--primary); font-weight: 500; }
+
+/* ---------- orb states row ---------- */
+.states { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--border); border: 1px solid var(--border); }
+.states figure { margin: 0; background: var(--background); padding: 1rem; display: grid; gap: 0.75rem; }
+.states .screen { cursor: default; }
+.states figcaption { display: flex; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; }
+.states figcaption span:last-child { color: var(--muted-foreground); font-size: 0.875rem; }
+@media (max-width: 760px) { .states { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ---------- architecture ---------- */
+.arch { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: 2rem; align-items: start; }
+@media (max-width: 900px) { .arch { grid-template-columns: 1fr; } }
+.stack { display: grid; }
+.layer-row { border: 1px solid var(--border); padding: 1.25rem; display: grid; gap: 0.4rem; background: var(--surface); }
+.layer-row + .layer-row { border-top: 0; }
+.layer-row.ours { border-color: var(--primary); background: var(--primary-soft); }
+.layer-row.ours + .layer-row { border-top: 1px solid var(--border); }
+.layer-row header { display: flex; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+.layer-row h3 { font-size: var(--step-1); font-weight: 700; }
+.layer-row p { color: var(--muted-foreground); font-size: 0.9375rem; }
+.contract { border: 1px solid var(--border); }
+.contract h3 { font: 500 0.75rem/1 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; padding: 0.9rem 1.1rem; border-bottom: 1px solid var(--border); color: var(--muted-foreground); }
+.contract ul { list-style: none; margin: 0; padding: 0; }
+.contract li { display: grid; grid-template-columns: 8.5rem minmax(0, 1fr); gap: 0.75rem; padding: 0.7rem 1.1rem; font-size: 0.9375rem; }
+.contract li + li { border-top: 1px solid var(--border); }
+.contract li code { color: var(--primary); font-size: 0.8125rem; }
+.contract li span { color: var(--muted-foreground); }
+
+/* ---------- performance ---------- */
+.perf { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr); gap: 2rem; align-items: start; }
+@media (max-width: 900px) { .perf { grid-template-columns: 1fr; } }
+.bars-chart { border: 1px solid var(--border); padding: 1.5rem; display: grid; gap: 1.1rem; }
+.bar-row { display: grid; grid-template-columns: 10.5rem minmax(0, 1fr); gap: 1rem; align-items: center; }
+@media (max-width: 520px) { .bar-row { grid-template-columns: 1fr; gap: 0.4rem; } }
+.bar-row .name { font-size: 0.9375rem; }
+.bar-row .name small { display: block; font: 500 0.6875rem/1.4 var(--font-mono); color: var(--muted-foreground); letter-spacing: 0.04em; }
+.track { position: relative; height: 2rem; background: var(--surface-2); }
+.fill { position: absolute; inset: 0 auto 0 0; background: var(--muted-foreground); display: flex; align-items: center; justify-content: flex-end; padding-right: 0.5rem; font: 700 0.8125rem/1 var(--font-mono); color: var(--background); font-variant-numeric: tabular-nums; }
+.fill.accent { background: var(--primary); color: var(--primary-foreground); }
+.fill.ghost { background: transparent; border: 1px dashed var(--muted-foreground); color: var(--muted-foreground); }
+.axis { display: grid; grid-template-columns: 10.5rem minmax(0, 1fr); gap: 1rem; }
+.axis .ticks { position: relative; height: 1rem; font: 500 0.6875rem/1 var(--font-mono); color: var(--muted-foreground); }
+.axis .ticks span { position: absolute; transform: translateX(-50%); }
+.axis .ticks span:first-child { transform: none; }
+@media (max-width: 520px) { .axis { grid-template-columns: 1fr; } .axis > div:first-child { display: none; } }
+.facts { border: 1px solid var(--border); }
+.facts div { display: flex; justify-content: space-between; gap: 1rem; padding: 0.85rem 1.1rem; font-size: 0.9375rem; }
+.facts div + div { border-top: 1px solid var(--border); }
+.facts span { color: var(--muted-foreground); }
+.facts b { font: 700 0.875rem/1.4 var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; }
+.note { font: 500 0.75rem/1.5 var(--font-mono); color: var(--muted-foreground); }
+
+/* ---------- boards ---------- */
+.boards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--border); }
+.boards > div { padding: 1.5rem; display: grid; gap: 1rem; align-content: start; min-width: 0; }
+.boards > div + div { border-left: 1px solid var(--border); }
+.size-box { display: flex; align-items: flex-end; height: 140px; }
+.size-box i { display: block; background: var(--screen); border: 1px solid var(--border); }
+.boards h3 { font-size: var(--step-1); font-weight: 700; }
+.boards p { color: var(--muted-foreground); font-size: 0.9375rem; }
+.chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+@media (max-width: 860px) { .boards { grid-template-columns: 1fr; } .boards > div + div { border-left: 0; border-top: 1px solid var(--border); } }
+
+/* ---------- principles ---------- */
+.principles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--border); border: 1px solid var(--border); }
+.principles > div { background: var(--background); padding: 1.5rem; display: grid; gap: 0.5rem; align-content: start; }
+.principles h3 { font-size: var(--step-1); font-weight: 700; }
+.principles p { color: var(--muted-foreground); font-size: 0.9375rem; }
+@media (max-width: 860px) { .principles { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 520px) { .principles { grid-template-columns: 1fr; } }
+
+/* ---------- roadmap ---------- */
+.road { border: 1px solid var(--border); }
+.road li { display: grid; grid-template-columns: 3rem minmax(0, 1fr) auto; gap: 1rem; padding: 1.1rem 1.25rem; align-items: baseline; }
+.road ol { list-style: none; margin: 0; padding: 0; }
+.road li + li { border-top: 1px solid var(--border); }
+.road .n { font: 700 0.8125rem/1 var(--font-mono); color: var(--muted-foreground); }
+.road h3 { font-size: 1.0625rem; font-weight: 700; }
+.road p { color: var(--muted-foreground); font-size: 0.9375rem; margin-top: 0.2rem; }
+.road li.now .n { color: var(--primary); }
+@media (max-width: 520px) { .road li { grid-template-columns: 2rem minmax(0, 1fr); } .road li .badge { grid-column: 2; justify-self: start; } }
+
+/* ---------- docs ---------- */
+.docs { display: grid; grid-template-columns: 15rem minmax(0, 1fr); border: 1px solid var(--border); min-height: 26rem; }
+@media (max-width: 760px) { .docs { grid-template-columns: 1fr; } }
+.docs nav { border-right: 1px solid var(--border); padding: 0.75rem 0; display: grid; align-content: start; }
+@media (max-width: 760px) { .docs nav { border-right: 0; border-bottom: 1px solid var(--border); display: flex; overflow-x: auto; padding: 0; } }
+.doc-link { background: transparent; border: 0; text-align: left; padding: 0.65rem 1.1rem; font: 500 0.875rem/1.2 var(--font-sans); color: var(--muted-foreground); cursor: pointer; display: flex; justify-content: space-between; gap: 0.75rem; align-items: center; white-space: nowrap; }
+.doc-link small { font: 500 0.625rem/1 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; }
+.doc-link[aria-current="true"] { color: var(--foreground); background: var(--surface); box-shadow: inset 2px 0 0 var(--primary); }
+.doc-body { padding: clamp(1.25rem, 3vw, 2rem); display: grid; gap: 1rem; align-content: start; min-width: 0; }
+.doc-body h3 { font-size: var(--step-2); font-weight: 700; }
+.doc-body p { color: var(--muted-foreground); max-width: 62ch; }
+.doc-body ul { margin: 0; padding-left: 1.1rem; color: var(--muted-foreground); display: grid; gap: 0.35rem; max-width: 62ch; }
+.code { position: relative; }
+.code pre { margin: 0; background: var(--surface); border: 1px solid var(--border); padding: 1rem 1rem 1rem 1rem; font-size: 0.8125rem; line-height: 1.7; overflow-x: auto; }
+.code .copy { position: absolute; top: 0.5rem; right: 0.5rem; height: 1.9rem; padding: 0 0.6rem; font-size: 0.75rem; }
+.placeholder { border: 1px dashed var(--border); padding: 1.25rem; display: grid; gap: 0.5rem; }
+.placeholder p { font: 500 0.8125rem/1.5 var(--font-mono); }
+
+/* ---------- footer ---------- */
+footer .wrap { padding-block: 3rem; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2rem; align-items: end; }
+footer p { color: var(--muted-foreground); font-size: 0.875rem; max-width: 60ch; }
+.foot-links { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+@media (max-width: 760px) { footer .wrap { grid-template-columns: 1fr; } }
+
+.cta-band .wrap { padding-block: clamp(3.5rem, 8vw, 6rem); display: grid; gap: 1.5rem; justify-items: start; }
+.cta-band h2 { font-size: var(--step-3); font-weight: 800; line-height: 1.05; max-width: 22ch; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+}
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <a class="mark" href="#top"><span class="mark-tile" aria-hidden="true"></span>TESSERA</a>
+    <nav class="nav" aria-label="Sections">
+      <a href="#idea">Idea</a>
+      <a href="#plates">Plates</a>
+      <a href="#interaction">Interaction</a>
+      <a href="#build">Build</a>
+      <a href="#roadmap">Roadmap</a>
+      <a href="#docs">Docs</a>
+    </nav>
+    <button class="btn btn-ghost theme-btn" id="theme" type="button" aria-label="Switch theme">◐</button>
+    <a class="btn btn-primary" href="https://github.com/SarkarShubhdeep/tessera" target="_blank" rel="noopener">GitHub</a>
+  </div>
+</header>
+
+<main id="top">
+  <!-- HERO -->
+  <section class="hero">
+    <div class="wrap">
+      <div class="hero-copy">
+        <div class="hero-meta">
+          <span class="badge badge-live">Early design</span>
+          <span class="badge">ESP32-S31 · 480 × 480 AMOLED</span>
+          <span class="badge">Open source</span>
+        </div>
+        <h1>The agent designs the screen. <em>The device draws it.</em></h1>
+        <p class="sub">Tessera is an interface for small AI devices. Ask with one button, and Claude answers with a native screen instead of a paragraph.</p>
+        <div class="hero-cta">
+          <a class="btn btn-primary" href="#interaction">Try the device</a>
+          <a class="btn" href="#idea">How it works</a>
+        </div>
+      </div>
+      <figure class="device-fig" aria-label="Live preview of the Tessera interface on an ESP-Mosaico">
+        <div class="device" id="heroDevice">
+          <div class="screen" id="heroScreen"></div>
+          <span class="ai-btn" aria-hidden="true"></span>
+          <div class="device-foot"><span>ESP-MOSAICO</span><span class="pills"><i></i><i></i></span></div>
+        </div>
+        <figcaption class="annot"><span>480 × 480 AMOLED</span><span><b>■</b> AI button</span><span>Live preview</span></figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- IDEA -->
+  <section id="idea">
+    <div class="wrap sec">
+      <div class="sec-head">
+        <span class="label">The idea</span>
+        <div>
+          <h2>Small screens deserve better than a chat window.</h2>
+          <p class="lede">Most AI gadgets shrink a chatbot onto a tiny display. Tessera gives the agent a design system instead, so every answer arrives as a screen built for a 2-inch square of glass.</p>
+        </div>
+      </div>
+      <div class="contrast">
+        <div>
+          <span class="was">walls of text</span>
+          <h3>Plates, not paragraphs</h3>
+          <p>Ask how long the tea has left and you get a countdown, not a sentence about a countdown. Spoken replies stay short; the plate carries the detail.</p>
+        </div>
+        <div>
+          <span class="was">app grids and drawers</span>
+          <h3>One thing at a time</h3>
+          <p>No status bar, no app grid, no notification drawer. The screen shows the orb or a single plate. Pin a plate and it becomes an app the agent keeps fresh.</p>
+        </div>
+        <div>
+          <span class="was">UI scripts at 30 fps</span>
+          <h3>Native, flat, fast</h3>
+          <p>Plates are drawn by the firmware in C with LVGL, from a fixed design system. The agent never runs code to draw, so every screen is consistent, safe and built for 60 fps.</p>
+        </div>
+      </div>
+      <div class="flow">
+        <div><span class="n">STEP 1</span><h3>You ask</h3><p>Hold the orange AI button, speak, let go.</p></div>
+        <div><span class="n">STEP 2</span><h3>Claude picks a plate</h3><p>It answers through one tool, <code class="mono">show_plate</code>, whose schema is the design system.</p></div>
+        <div><span class="n">STEP 3</span><h3>The engine checks it</h3><p>Fields are validated. Anything unknown falls back to a plain answer plate.</p></div>
+        <div><span class="n">STEP 4</span><h3>The device draws it</h3><p>Rendered natively, with only the changing region redrawn each frame.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PLATES -->
+  <section id="plates">
+    <div class="wrap sec">
+      <div class="sec-head">
+        <span class="label">Plates</span>
+        <div>
+          <h2>A vocabulary of screens, shared by the designer and the agent.</h2>
+          <p class="lede">Each plate type is a layout, a set of fields and a motion rule. What the agent sends on the left is exactly what the device draws on the right.</p>
+        </div>
+      </div>
+      <div class="explorer">
+        <div class="tabs" role="tablist" aria-label="Plate types" id="plateTabs"></div>
+        <div class="spec">
+          <span class="label">show_plate input</span>
+          <pre id="plateJson" aria-live="polite"></pre>
+          <p id="plateNote"></p>
+        </div>
+        <div class="render">
+          <div class="screen" id="plateScreen" aria-label="Rendered plate"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- INTERACTION -->
+  <section id="interaction">
+    <div class="wrap sec">
+      <div class="sec-head">
+        <span class="label">Interaction</span>
+        <div>
+          <h2>One button, a few gestures, nothing to learn twice.</h2>
+          <p class="lede">Every input has one job. Voice is the fast path, never the only one: everything works by touch too.</p>
+        </div>
+      </div>
+      <div class="grammar-grid">
+        <dl class="grammar">
+          <div><dt><b>AI</b> hold</dt><dd>Talk. Release to send.</dd></div>
+          <div><dt><b>AI</b> tap</dt><dd>Act on the plate on screen: "five more minutes".</dd></div>
+          <div><dt>Swipe ← →</dt><dd>Move between plates, with a haptic detent at each one.</dd></div>
+          <div><dt>Tap</dt><dd>The plate's one main action.</dd></div>
+          <div><dt>Long-press</dt><dd>Pin or unpin. Pinned plates become apps.</dd></div>
+          <div><dt>Flip face-down</dt><dd>Mute and do not disturb.</dd></div>
+          <div><dt>Tilt</dt><dd>The orb leans toward you.</dd></div>
+        </dl>
+        <div class="play">
+          <div class="device" id="playDevice" style="width:min(100%,380px)">
+            <div class="screen" id="playScreen" tabindex="0" aria-label="Interactive device. Use the controls below, or drag the screen sideways."></div>
+            <button class="ai-btn" id="playAi" type="button" aria-label="AI button: hold to talk, tap to act"></button>
+            <div class="device-foot"><span>TRY IT</span><span class="pills"><i></i><i></i></span></div>
+          </div>
+          <div class="controls">
+            <button class="btn" id="cHold" type="button">Hold AI</button>
+            <button class="btn" id="cTap" type="button">Tap AI</button>
+            <button class="btn" id="cPrev" type="button" aria-label="Swipe right">←</button>
+            <button class="btn" id="cNext" type="button" aria-label="Swipe left">→</button>
+            <button class="btn" id="cPin" type="button">Long-press</button>
+            <button class="btn" id="cFlip" type="button" aria-pressed="false">Flip</button>
+          </div>
+          <p class="log" id="log" aria-live="polite">Hold the AI button, or press and hold the orange bar on the device.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ORB -->
+  <section id="orb">
+    <div class="wrap sec">
+      <div class="sec-head">
+        <span class="label">Presence</span>
+        <div>
+          <h2>An orb, not a face.</h2>
+          <p class="lede">The device shows what the agent is doing with four states of light. Every animation stays inside a 200 px box, so the rest of the screen never redraws.</p>
+        </div>
+      </div>
+      <div class="states" id="states"></div>
+    </div>
+  </section>
+
+  <!-- BUILD -->
+  <section id="build">
+    <div class="wrap sec">
+      <div class="sec-head">
+        <span class="label">How it's built</span>
+        <div>
+          <h2>A new surface on a proven engine.</h2>
+          <p class="lede">Tessera writes everything you see, touch and hear. The agent loop comes from Espressif's ESP-Claw, slimmed down to Claude and MCP.</p>
+        </div>
+      </div>
+      <div class="arch">
+        <div class="stack">
+          <div class="layer-row ours">
+            <header><h3>Surface</h3><span class="badge badge-live">Tessera</span></header>
+            <p>Orb, plates, gestures, haptics and sound. C and LVGL 9.5. The same code runs in a Mac simulator and on the board.</p>
+          </div>
+          <div class="layer-row">
+            <header><h3>Engine</h3><span class="badge">ESP-Claw core</span></header>
+            <p>Agent loop, Claude API, tools, MCP client and server, memory. Chat-app integrations removed.</p>
+          </div>
+          <div class="layer-row">
+            <header><h3>Board</h3><span class="badge">Board Manager</span></header>
+            <p>Display, touch, audio, button, motor and motion sensors, described per board in YAML.</p>
+          </div>
+        </div>
+        <div class="contract">
+          <h3>The contract between them</h3>
+          <ul>
+            <li><code>state</code><span>idle, listening, thinking, speaking</span></li>
+            <li><code>plate</code><span>show a plate: type and fields</span></li>
+            <li><code>plate_update</code><span>fresh values for a pinned plate</span></li>
+            <li><code>talk_start / end</code><span>the AI button is held, then released</span></li>
+            <li><code>act</code><span>the AI button is tapped on a plate</span></li>
+            <li><code>choose · pin</code><span>a plate's action, pin or unpin</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="perf">
+        <div class="bars-chart" role="img" aria-label="Frame rate: ESP-Claw caps the screen at 30 frames per second; Tessera targets 60; the display link alone allows about 85.">
+          <span class="label">Frames per second, Mosaico display</span>
+          <div class="bar-row"><div class="name">ESP-Claw today<small>33 ms refresh cap</small></div><div class="track"><div class="fill" style="width:30%">30</div></div></div>
+          <div class="bar-row"><div class="name">Tessera target<small>16 ms refresh</small></div><div class="track"><div class="fill accent" style="width:60%">60</div></div></div>
+          <div class="bar-row"><div class="name">Display link ceiling<small>QSPI, 80 MHz, full frame</small></div><div class="track"><div class="fill ghost" style="width:85%">~85</div></div></div>
+          <div class="axis"><div></div><div class="ticks"><span style="left:0">0</span><span style="left:30%">30</span><span style="left:60%">60</span><span style="left:90%">90</span></div></div>
+        </div>
+        <div style="display:grid;gap:1rem">
+          <div class="facts">
+            <div><span>Full 480 × 480 frame over QSPI</span><b>≈ 11.5 ms</b></div>
+            <div><span>Display clock, ESP-Claw → Tessera</span><b>40 → 80 MHz</b></div>
+            <div><span>Refresh period</span><b>33 → 16 ms</b></div>
+            <div><span>GPU on the S31</span><b>none</b></div>
+            <div><span>2D accelerator, JPEG codec</span><b>yes</b></div>
+          </div>
+          <p class="note">Targets, not measurements. 80 MHz still needs testing on this panel; real numbers will come from the board.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BOARDS -->
+  <section id="boards">
+    <div class="wrap sec">
+      <div class="sec-head">
+        <span class="label">Boards</span>
+        <div>
+          <h2>One interface for every screen-and-button ESP32.</h2>
+          <p class="lede">Boards declare a size class, a shape and what they have. The design tokens scale; features without hardware step aside gracefully.</p>
+        </div>
+      </div>
+      <div class="boards">
+        <div>
+          <div class="size-box"><i style="width:140px;height:140px"></i></div>
+          <span class="label">L · 466–480 px</span>
+          <h3>ESP-Mosaico</h3>
+          <p>The reference board. ESP32-S31, square AMOLED, mic, speaker, motor, 9-axis motion, camera module.</p>
+          <div class="chips"><span class="badge badge-live">First</span><span class="badge">mic</span><span class="badge">motor</span><span class="badge">IMU</span></div>
+        </div>
+        <div>
+          <div class="size-box"><i style="width:120px;height:120px"></i></div>
+          <span class="label">M · 360–412 px</span>
+          <h3>ESP32-S3 displays</h3>
+          <p>Square and round touch AMOLEDs from Waveshare, Seeed and others. Same plates, tighter type scale.</p>
+          <div class="chips"><span class="badge">Next</span><span class="badge">touch</span><span class="badge">round or square</span></div>
+        </div>
+        <div>
+          <div class="size-box"><i style="width:70px;height:70px"></i></div>
+          <span class="label">S · 240 px</span>
+          <h3>Small screens</h3>
+          <p>240 × 240 boards with one or two buttons. Plates shrink to their essentials; no mic means tap-only.</p>
+          <div class="chips"><span class="badge">Later</span><span class="badge">buttons</span></div>
+        </div>
+      </div>
+      <p class="note">Squares drawn to scale with each other.</p>
+    </div>
+  </section>
+
+  <!-- PRINCIPLES -->
+  <section id="principles">
+    <div class="wrap sec">
+      <div class="sec-head">
+        <span class="label">Principles</span>
+        <div><h2>Decisions, written down.</h2><p class="lede">Every choice is logged with its reasons in the repo.</p></div>
+      </div>
+      <div class="principles">
+        <div><h3>Flat and sharp</h3><p>Square corners, 1 px rules, no shadows. Plates draw on print and Swiss posters, not rounded cards.</p></div>
+        <div><h3>True black</h3><p>On AMOLED, black pixels are off. Deep contrast, less power, nothing to redraw.</p></div>
+        <div><h3>One accent</h3><p>Orange, from the AI button, marks whatever is live or actionable.</p></div>
+        <div><h3>Data, not code</h3><p>The agent fills in plates. It never runs code to draw the screen.</p></div>
+        <div><h3>Haptics as punctuation</h3><p>Short detents and a soft heartbeat while thinking. Never a long buzz.</p></div>
+        <div><h3>Simulator first</h3><p>UI is built on a Mac. Hardware changes reach the board only after a pin-by-pin review.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ROADMAP -->
+  <section id="roadmap">
+    <div class="wrap sec">
+      <div class="sec-head">
+        <span class="label">Roadmap</span>
+        <div><h2>Where it stands.</h2><p class="lede">Built in the open, one step at a time.</p></div>
+      </div>
+      <div class="road">
+        <ol>
+          <li class="now"><span class="n">01</span><div><h3>Design system</h3><p>Plate types, type scale, spacing and motion, in the simulator.</p></div><span class="badge badge-live">Now</span></li>
+          <li><span class="n">02</span><div><h3>Interaction prototype</h3><p>The full grammar against a fake agent, clickable on a Mac.</p></div><span class="badge">Next</span></li>
+          <li><span class="n">03</span><div><h3>Mosaico bring-up</h3><p>Display at 60 fps, touch, audio and haptics, measured on the board.</p></div><span class="badge">Planned</span></li>
+          <li><span class="n">04</span><div><h3>Engine</h3><p>The slim ESP-Claw core talking to Claude, with MCP.</p></div><span class="badge">Planned</span></li>
+          <li><span class="n">05</span><div><h3>Second board</h3><p>An ESP32-S3 display, to prove one interface scales from 240 to 480 px.</p></div><span class="badge">Planned</span></li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- DOCS -->
+  <section id="docs">
+    <div class="wrap sec">
+      <div class="sec-head">
+        <span class="label">Docs</span>
+        <div><h2>Documentation.</h2><p class="lede">Start with the simulator today. The rest fills in as each part is built.</p></div>
+      </div>
+      <div class="docs">
+        <nav aria-label="Documentation" id="docNav"></nav>
+        <div class="doc-body" id="docBody" aria-live="polite"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta-band">
+    <div class="wrap">
+      <span class="label">Follow along</span>
+      <h2>A square of glass, one orange button, and an agent that designs.</h2>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="https://github.com/SarkarShubhdeep/tessera" target="_blank" rel="noopener">Star on GitHub</a>
+        <a class="btn" href="https://github.com/SarkarShubhdeep/tessera/blob/main/docs/decisions.md" target="_blank" rel="noopener">Read the decisions</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div style="display:grid;gap:0.75rem">
+      <a class="mark" href="#top"><span class="mark-tile" aria-hidden="true"></span>TESSERA</a>
+      <p>A tessera is a single square tile in a mosaic. Apache-2.0. Built on ESP-Claw by Espressif and LVGL. Designed for the ESP-Mosaico.</p>
+    </div>
+    <div class="foot-links">
+      <a class="btn btn-ghost" href="https://github.com/SarkarShubhdeep/tessera" target="_blank" rel="noopener">Repository</a>
+      <a class="btn btn-ghost" href="https://github.com/SarkarShubhdeep/tessera/issues" target="_blank" rel="noopener">Issues</a>
+      <a class="btn btn-ghost" href="#top">Back to top</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  var REDUCED = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ---------- theme toggle ---------- */
+  var root = document.documentElement;
+  try { var saved = localStorage.getItem("tessera-theme"); if (saved) root.setAttribute("data-theme", saved); } catch (e) {}
+  document.getElementById("theme").addEventListener("click", function () {
+    var cur = root.getAttribute("data-theme") ||
+      (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+    var next = cur === "dark" ? "light" : "dark";
+    root.setAttribute("data-theme", next);
+    try { localStorage.setItem("tessera-theme", next); } catch (e) {}
+  });
+
+  /* ---------- plates: one definition drives the JSON, the note and the render ---------- */
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function fmt(sec) { var m = Math.floor(sec / 60), s = sec % 60; return m + ":" + (s < 10 ? "0" : "") + s; }
+
+  var PLATES = {
+    timer: {
+      spec: { type: "timer", label: "Tea", seconds: 240 },
+      note: "Counts down on the device itself. Tap AI to add five minutes.",
+      html: function (p, st) {
+        var left = st && st.left != null ? st.left : p.seconds;
+        return '<div class="p-head"><span>Timer · ' + esc(p.label) + '</span><b>● Live</b></div>' +
+          '<div class="p-body"><div class="p-big" data-t>' + fmt(left) + '</div>' +
+          '<div class="p-progress"><i data-bar style="width:' + (left / p.seconds * 100) + '%"></i></div></div>' +
+          '<div class="p-foot"><span>Hold AI · change</span><b>Tap · stop</b></div>';
+      }
+    },
+    number: {
+      spec: { type: "number", value: 21, unit: "°C", label: "Living room", detail: "Humidity 41%" },
+      note: "One value, set huge. Pin it and the agent refreshes it on a schedule.",
+      html: function (p) {
+        return '<div class="p-head"><span>' + esc(p.label) + '</span><span>Now</span></div>' +
+          '<div class="p-body"><div class="p-big">' + esc(p.value) + '<small>' + esc(p.unit) + '</small></div>' +
+          '<div class="p-sub">' + esc(p.detail) + '</div></div>' +
+          '<div class="p-foot"><span>Long-press · pin</span><b>Updated 09:41</b></div>';
+      }
+    },
+    answer: {
+      spec: { type: "answer", text: "Lisbon is 2 hours ahead of you.", source: "World clock" },
+      note: "For facts and short replies. The voice says it; the plate keeps it.",
+      html: function (p) {
+        return '<div class="p-head"><span>Answer</span><span>' + esc(p.source) + '</span></div>' +
+          '<div class="p-body"><div class="p-answer">' + esc(p.text) + '</div></div>' +
+          '<div class="p-foot"><span>Hold AI · follow up</span><b>Swipe · dismiss</b></div>';
+      }
+    },
+    list: {
+      spec: { type: "list", title: "Today", items: [["10:00", "Design review"], ["13:30", "Lunch, studio"], ["16:00", "Mosaico bring-up"]], now: 0 },
+      note: "Up to five rows. The current one is marked in the accent.",
+      html: function (p) {
+        var rows = p.items.map(function (it, i) { return '<div' + (i === p.now ? ' class="now"' : '') + '><span>' + esc(it[0]) + '</span>' + esc(it[1]) + '</div>'; }).join("");
+        return '<div class="p-head"><span>' + esc(p.title) + '</span><span>' + p.items.length + ' items</span></div>' +
+          '<div class="p-body"><div class="p-list">' + rows + '</div></div>' +
+          '<div class="p-foot"><span>Tap · open</span><b>Swipe · next</b></div>';
+      }
+    },
+    choice: {
+      spec: { type: "choice", question: "Lights: warm or cool?", options: ["Warm", "Cool", "Off"], selected: 0 },
+      note: "Two to four options. A tap sends the choice straight back to the agent.",
+      html: function (p) {
+        var opts = p.options.map(function (o, i) { return '<div' + (i === p.selected ? ' class="on"' : '') + '><span>' + esc(o) + '</span><span>' + (i === p.selected ? '■' : '') + '</span></div>'; }).join("");
+        return '<div class="p-head"><span>Choose</span><span>' + p.options.length + ' options</span></div>' +
+          '<div class="p-body"><div class="p-q">' + esc(p.question) + '</div><div class="p-opts">' + opts + '</div></div>';
+      }
+    },
+    gauge: {
+      spec: { type: "gauge", label: "Battery", value: 84, min: 0, max: 100, detail: "About 3 hours left" },
+      note: "A value within a range, drawn in ten flat segments.",
+      html: function (p) {
+        var on = Math.round((p.value - p.min) / (p.max - p.min) * 10), segs = "";
+        for (var i = 0; i < 10; i++) segs += '<i' + (i < on ? ' class="on"' : '') + '></i>';
+        return '<div class="p-head"><span>' + esc(p.label) + '</span><span>' + p.min + '–' + p.max + '</span></div>' +
+          '<div class="p-body"><div class="p-big">' + p.value + '<small>%</small></div><div class="p-segs">' + segs + '</div>' +
+          '<div class="p-sub">' + esc(p.detail) + '</div></div>';
+      }
+    },
+    image: {
+      spec: { type: "image", source: "camera", caption: "Desk, just now" },
+      note: "Shown only when the camera module is attached. Decoded by the S31's JPEG hardware.",
+      html: function (p) {
+        return '<div class="p-head"><span>Photo</span><span>' + esc(p.source) + '</span></div>' +
+          '<div class="p-photo"><span>Camera module<br>attached</span></div>' +
+          '<div class="p-foot"><span>' + esc(p.caption) + '</span><b>Hold AI · ask about it</b></div>';
+      }
+    }
+  };
+  var ORDER = ["timer", "number", "answer", "list", "choice", "gauge", "image"];
+
+  function specJson(spec) {
+    var s = JSON.stringify(spec, null, 2);
+    return esc(s)
+      .replace(/&quot;([a-z_]+)&quot;:/g, '<span class="tok-k">"$1"</span>:')
+      .replace(/: &quot;([^&]*)&quot;/g, ': <span class="tok-s">"$1"</span>')
+      .replace(/: (\d+)/g, ': <span class="tok-n">$1</span>');
+  }
+
+  /* ---------- screen builders ---------- */
+  function orbLayer() {
+    return '<div class="layer" data-layer="orb"><div class="clock" data-clock>09:41</div>' +
+      '<div class="orb-wrap"><div class="orb"></div><div class="bars"><i></i><i></i><i></i><i></i><i></i></div><div class="dots"><i></i><i></i><i></i></div></div>' +
+      '<div class="status" data-status>Tap to talk</div></div>';
+  }
+  var STATUS = { idle: "Tap to talk", listening: "Listening", thinking: "Thinking", speaking: "Speaking" };
+
+  function Screen(el, opts) {
+    opts = opts || {};
+    this.el = el;
+    el.innerHTML = '<div class="stage" data-state="idle">' + orbLayer() +
+      '<div class="layer out" data-layer="plate"><div class="plate"></div></div>' +
+      (opts.detents ? '<div class="detent" data-detent></div>' : '') +
+      '<div class="mute-veil">MUTED</div></div>';
+    this.stage = el.querySelector(".stage");
+    this.orb = el.querySelector('[data-layer="orb"]');
+    this.plateLayer = el.querySelector('[data-layer="plate"]');
+    this.plate = el.querySelector(".plate");
+    this.status = el.querySelector("[data-status]");
+    this.timer = null;
+  }
+  Screen.prototype.state = function (s) {
+    this.stage.setAttribute("data-state", s);
+    this.status.textContent = STATUS[s];
+  };
+  Screen.prototype.showOrb = function () {
+    this.plateLayer.classList.add("out");
+    this.orb.classList.remove("out");
+    this.stopTimer();
+  };
+  Screen.prototype.showPlate = function (key, from) {
+    var def = PLATES[key], self = this;
+    this.stopTimer();
+    this.key = key;
+    this.plate.innerHTML = def.html(def.spec, this.timerState) + '<span class="pin-flag" aria-hidden="true"></span>';
+    this.orb.classList.add("out");
+    var L = this.plateLayer;
+    L.classList.remove("out", "left", "right");
+    if (from && !REDUCED) {
+      L.style.transition = "none"; L.classList.add(from);
+      void L.offsetWidth; L.style.transition = ""; L.classList.remove(from);
+    }
+    if (key === "timer") this.runTimer();
+  };
+  Screen.prototype.runTimer = function () {
+    var self = this, p = PLATES.timer.spec;
+    if (!this.timerState) this.timerState = { left: p.seconds };
+    var t = this.plate.querySelector("[data-t]"), bar = this.plate.querySelector("[data-bar]");
+    var paint = function () {
+      t.textContent = fmt(self.timerState.left);
+      bar.style.width = Math.min(100, self.timerState.left / p.seconds * 100) + "%";
+    };
+    paint();
+    if (REDUCED) return;
+    this.timer = setInterval(function () {
+      self.timerState.left = self.timerState.left > 0 ? self.timerState.left - 1 : p.seconds;
+      paint();
+    }, 1000);
+  };
+  Screen.prototype.stopTimer = function () { if (this.timer) { clearInterval(this.timer); this.timer = null; } };
+
+  /* clocks show the viewer's real time */
+  function tickClocks() {
+    var d = new Date(), s = (d.getHours() < 10 ? "0" : "") + d.getHours() + ":" + (d.getMinutes() < 10 ? "0" : "") + d.getMinutes();
+    document.querySelectorAll("[data-clock]").forEach(function (c) { c.textContent = s; });
+  }
+
+  /* ---------- hero: an autoplaying loop of the whole idea ---------- */
+  var hero = new Screen(document.getElementById("heroScreen"));
+  var HERO_STEPS = [
+    [0, function () { hero.showOrb(); hero.state("idle"); }],
+    [2200, function () { hero.state("listening"); }],
+    [4200, function () { hero.state("thinking"); }],
+    [5600, function () { hero.state("speaking"); }],
+    [6300, function () { hero.showPlate("timer"); }],
+    [11000, function () { hero.showPlate("number", "right"); }],
+    [14500, function () { hero.showPlate("list", "right"); }],
+    [18000, null]
+  ];
+  function heroLoop() {
+    HERO_STEPS.forEach(function (st) {
+      if (st[1]) setTimeout(st[1], st[0]); else setTimeout(heroLoop, st[0]);
+    });
+  }
+  if (REDUCED) { hero.state("idle"); } else { heroLoop(); }
+
+  /* ---------- plate explorer ---------- */
+  var tabs = document.getElementById("plateTabs");
+  var exScreen = new Screen(document.getElementById("plateScreen"));
+  var jsonEl = document.getElementById("plateJson"), noteEl = document.getElementById("plateNote");
+  ORDER.forEach(function (k, i) {
+    var b = document.createElement("button");
+    b.className = "tab"; b.type = "button"; b.setAttribute("role", "tab"); b.id = "tab-" + k;
+    b.setAttribute("aria-selected", i === 0 ? "true" : "false");
+    b.textContent = k;
+    b.addEventListener("click", function () { selectPlate(k); });
+    tabs.appendChild(b);
+  });
+  function selectPlate(k) {
+    tabs.querySelectorAll(".tab").forEach(function (t) { t.setAttribute("aria-selected", t.id === "tab-" + k ? "true" : "false"); });
+    jsonEl.innerHTML = specJson(PLATES[k].spec);
+    noteEl.textContent = PLATES[k].note;
+    exScreen.showPlate(k);
+  }
+  selectPlate("timer");
+
+  /* ---------- orb states row ---------- */
+  var statesEl = document.getElementById("states");
+  [["idle", "Breathing, slow"], ["listening", "Level bars"], ["thinking", "Dots in turn"], ["speaking", "Quick pulse"]].forEach(function (s) {
+    var f = document.createElement("figure");
+    f.innerHTML = '<div class="screen"></div><figcaption><span class="label">' + s[0] + '</span><span>' + s[1] + '</span></figcaption>';
+    statesEl.appendChild(f);
+    var sc = new Screen(f.querySelector(".screen"));
+    sc.state(s[0]);
+  });
+
+  /* ---------- playground: the full grammar ---------- */
+  var playEl = document.getElementById("playScreen");
+  var play = new Screen(playEl, { detents: true });
+  var playDevice = document.getElementById("playDevice");
+  var logEl = document.getElementById("log");
+  var deck = ["number", "list", "timer", "gauge"]; /* pinned plates, in swipe order */
+  var idx = -1;                                    /* -1 = the orb */
+  var pinned = { number: true, list: true };
+  var muted = false, talking = false, busy = false;
+  var detentEl = playEl.querySelector("[data-detent]");
+
+  function log(html) { logEl.innerHTML = html; }
+  function buzz() {
+    if (REDUCED || muted) return;
+    playDevice.classList.remove("buzz"); void playDevice.offsetWidth; playDevice.classList.add("buzz");
+  }
+  function drawDetents() {
+    var h = "";
+    for (var i = -1; i < deck.length; i++) h += '<i' + (i === idx ? ' class="on"' : '') + '></i>';
+    detentEl.innerHTML = h;
+  }
+  function showIdx(from) {
+    if (idx < 0) { play.showOrb(); play.state("idle"); }
+    else { play.showPlate(deck[idx], from); play.plate.classList.toggle("pinned", !!pinned[deck[idx]]); }
+    drawDetents();
+  }
+  function step(dir) {
+    if (muted || talking) return;
+    var n = idx + dir;
+    if (n < -1 || n >= deck.length) { log("End of the row."); return; }
+    idx = n; buzz(); showIdx(dir > 0 ? "right" : "left");
+    log(idx < 0 ? "Back to the orb. <b>Detent.</b>" : "Plate " + (idx + 1) + " of " + deck.length + ": " + deck[idx] + ". <b>Detent.</b>");
+  }
+  function talkStart() {
+    if (muted || busy) return;
+    talking = true; idx = -1; play.showOrb(); play.state("listening"); drawDetents();
+    log("Listening. Release to send.");
+  }
+  function talkEnd() {
+    if (!talking) return;
+    talking = false; busy = true;
+    play.state("thinking"); log("Thinking. A soft heartbeat on the motor.");
+    var beat = REDUCED ? null : setInterval(buzz, 700);
+    setTimeout(function () {
+      if (beat) clearInterval(beat);
+      play.state("speaking");
+      setTimeout(function () {
+        busy = false;
+        idx = deck.indexOf("timer"); showIdx("right");
+        log('"Tea timer, four minutes." Claude answered with a <b>timer</b> plate.');
+      }, REDUCED ? 0 : 650);
+    }, REDUCED ? 0 : 1500);
+  }
+  function tapAi() {
+    if (muted || talking || busy) return;
+    if (idx < 0) { talkStart(); setTimeout(talkEnd, REDUCED ? 0 : 1200); return; }
+    var k = deck[idx];
+    if (k === "timer") {
+      play.timerState = play.timerState || { left: PLATES.timer.spec.seconds };
+      play.timerState.left += 300; buzz(); showIdx(null);
+      log('Tap AI on the timer: <b>"five more minutes"</b>.');
+    } else {
+      log("Tap AI acts on the plate on screen: a follow-up about " + k + ".");
+      buzz();
+    }
+  }
+  function longPress() {
+    if (muted || idx < 0) { log(idx < 0 ? "Long-press a plate to pin it." : ""); return; }
+    var k = deck[idx]; pinned[k] = !pinned[k];
+    play.plate.classList.toggle("pinned", pinned[k]); buzz();
+    log(pinned[k] ? "Pinned <b>" + k + "</b>. It's an app now; the agent keeps it fresh." : "Unpinned " + k + ".");
+  }
+  function flip() {
+    muted = !muted;
+    playEl.classList.toggle("muted", muted);
+    document.getElementById("cFlip").setAttribute("aria-pressed", muted ? "true" : "false");
+    log(muted ? "Face-down. Muted, do not disturb." : "Face-up. Back on.");
+  }
+
+  /* hold: pointer on the Hold button or the orange AI bar */
+  function bindHold(el, isAiBar) {
+    var downAt = 0, held = false, timer = null;
+    el.addEventListener("pointerdown", function (e) {
+      e.preventDefault(); downAt = Date.now(); held = false;
+      if (!isAiBar) { held = true; talkStart(); return; }
+      timer = setTimeout(function () { held = true; talkStart(); }, 280);
+    });
+    var up = function () {
+      if (timer) { clearTimeout(timer); timer = null; }
+      if (held) { talkEnd(); held = false; }
+      else if (isAiBar && downAt) { tapAi(); }
+      downAt = 0;
+    };
+    el.addEventListener("pointerup", up);
+    el.addEventListener("pointerleave", function () { if (held) up(); else if (timer) { clearTimeout(timer); timer = null; downAt = 0; } });
+    el.addEventListener("keydown", function (e) {
+      if ((e.key === " " || e.key === "Enter") && !e.repeat) { e.preventDefault(); if (isAiBar) tapAi(); else { talkStart(); } }
+    });
+    el.addEventListener("keyup", function (e) {
+      if ((e.key === " " || e.key === "Enter") && !isAiBar) { e.preventDefault(); talkEnd(); }
+    });
+  }
+  bindHold(document.getElementById("cHold"), false);
+  bindHold(document.getElementById("playAi"), true);
+  document.getElementById("cTap").addEventListener("click", tapAi);
+  document.getElementById("cPrev").addEventListener("click", function () { step(-1); });
+  document.getElementById("cNext").addEventListener("click", function () { step(1); });
+  document.getElementById("cPin").addEventListener("click", longPress);
+  document.getElementById("cFlip").addEventListener("click", flip);
+  playEl.addEventListener("keydown", function (e) {
+    if (e.key === "ArrowRight") step(1); else if (e.key === "ArrowLeft") step(-1);
+  });
+
+  /* drag-to-swipe and press-and-hold on the screen itself */
+  var sx = null, sy = null, pressT = null, moved = false;
+  playEl.addEventListener("pointerdown", function (e) {
+    sx = e.clientX; sy = e.clientY; moved = false;
+    pressT = setTimeout(function () { pressT = null; if (!moved) longPress(); }, 600);
+  });
+  playEl.addEventListener("pointermove", function (e) {
+    if (sx === null) return;
+    if (Math.abs(e.clientX - sx) > 8 || Math.abs(e.clientY - sy) > 8) { moved = true; if (pressT) { clearTimeout(pressT); pressT = null; } }
+  });
+  playEl.addEventListener("pointerup", function (e) {
+    if (pressT) { clearTimeout(pressT); pressT = null; }
+    if (sx !== null) {
+      var dx = e.clientX - sx;
+      if (Math.abs(dx) > 40) step(dx < 0 ? 1 : -1);
+      else if (!moved && idx >= 0) log("Tap runs the plate's one main action.");
+    }
+    sx = null;
+  });
+  playEl.addEventListener("pointercancel", function () { sx = null; if (pressT) { clearTimeout(pressT); pressT = null; } });
+  showIdx(null);
+
+  /* ---------- docs ---------- */
+  var GH = "https://github.com/SarkarShubhdeep/tessera/blob/main/";
+  var DOCS = [
+    { id: "start", title: "Getting started", status: "Ready", body:
+      '<h3>Run the simulator</h3><p>The interface runs in a 480 × 480 window on a Mac, with the same LVGL version and colour depth as the board. You need Homebrew.</p>' +
+      codeBlock("git clone --recursive https://github.com/SarkarShubhdeep/tessera.git\ncd tessera/sim\nbrew install sdl2 cmake ninja\ncmake -S . -B build -G Ninja && ninja -C build\n./build/tessera_sim") +
+      '<p>Click the screen to cycle the orb states. The FPS counter in the corner is the Mac\'s, not the board\'s.</p>' },
+    { id: "plates", title: "Plate spec", status: "Draft", body:
+      '<h3>Plate spec</h3><p>Every plate type, its fields, limits and motion. This page will be generated from the same schema the agent uses, so the docs can\'t drift from the firmware.</p>' +
+      placeholder("Coming with step 01, the design system.", "design-system.md", "Read the current draft") },
+    { id: "interaction", title: "Interaction", status: "Draft", body:
+      '<h3>Interaction grammar</h3><p>The AI button, gestures, haptics and what each does on every plate type, with open questions still being decided.</p>' +
+      placeholder("Will grow with step 02, the interaction prototype.", "interaction.md", "Read the current draft") },
+    { id: "engine", title: "Engine contract", status: "Draft", body:
+      '<h3>Engine contract</h3><p>The messages between the surface and the engine, the <code class="mono">show_plate</code> tool and how MCP tools appear on screen.</p>' +
+      placeholder("Settles with step 04, the engine.", "architecture.md", "Read the architecture draft") },
+    { id: "porting", title: "Porting a board", status: "Planned", body:
+      '<h3>Porting a board</h3><p>How to describe a new board: pins, size class, shape and capabilities. A walk-through using an ESP32-S3 touch AMOLED.</p>' +
+      placeholder("Written with step 05, the second board.", null, null) },
+    { id: "hardware", title: "Hardware notes", status: "Ready", body:
+      '<h3>ESP-Mosaico notes</h3><ul><li>Pin map for board revision v1.2</li><li>What each button does, and how to reach download mode</li><li>How to recover from bad firmware with a flash backup</li><li>The motor-at-boot lesson, and the pin review before every flash</li></ul>' +
+      '<p><a class="btn" href="' + GH + 'docs/hardware.md" target="_blank" rel="noopener">Open hardware notes</a></p>' },
+    { id: "decisions", title: "Decisions", status: "Ready", body:
+      '<h3>Decision log</h3><p>Why C and LVGL rather than Rust, why an orb, why plates, why Claude only, and why the simulator comes first. Each with what was considered and the sources.</p>' +
+      '<p><a class="btn" href="' + GH + 'docs/decisions.md" target="_blank" rel="noopener">Open the decision log</a></p>' }
+  ];
+  function codeBlock(text) {
+    return '<div class="code"><pre><code>' + esc(text) + '</code></pre><button class="btn copy" type="button" data-copy>Copy</button></div>';
+  }
+  function placeholder(text, file, label) {
+    return '<div class="placeholder"><span class="label">Placeholder</span><p>' + esc(text) + '</p>' +
+      (file ? '<div><a class="btn" href="' + GH + 'docs/' + file + '" target="_blank" rel="noopener">' + esc(label) + '</a></div>' : '') + '</div>';
+  }
+  var docNav = document.getElementById("docNav"), docBody = document.getElementById("docBody");
+  DOCS.forEach(function (d) {
+    var b = document.createElement("button");
+    b.className = "doc-link"; b.type = "button"; b.id = "doc-" + d.id;
+    b.innerHTML = '<span>' + esc(d.title) + '</span><small>' + d.status + '</small>';
+    b.addEventListener("click", function () { openDoc(d.id); });
+    docNav.appendChild(b);
+  });
+  function openDoc(id) {
+    var d = DOCS.filter(function (x) { return x.id === id; })[0] || DOCS[0];
+    docNav.querySelectorAll(".doc-link").forEach(function (b) { b.setAttribute("aria-current", b.id === "doc-" + d.id ? "true" : "false"); });
+    docBody.innerHTML = d.body;
+  }
+  docBody.addEventListener("click", function (e) {
+    var btn = e.target.closest("[data-copy]");
+    if (!btn) return;
+    var pre = btn.parentNode.querySelector("code");
+    var done = function () { btn.textContent = "Copied"; setTimeout(function () { btn.textContent = "Copy"; }, 1400); };
+    var fallback = function () { var r = document.createRange(); r.selectNodeContents(pre); var s = window.getSelection(); s.removeAllRanges(); s.addRange(r); btn.textContent = "Selected"; };
+    try { navigator.clipboard.writeText(pre.textContent).then(done, fallback); } catch (err) { fallback(); }
+  });
+  openDoc("start");
+
+  tickClocks();
+  setInterval(tickClocks, 15000);
+})();
+</script>
