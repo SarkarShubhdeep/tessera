@@ -1,6 +1,6 @@
 # Pin review 02: touch, AI button, faster display link
 
-**Status:** built and audited; waiting for approval. Nothing has been flashed.
+**Status:** approved 2026-11-21, flashed (app slot only) and running (results at the end).
 **Build:** step 03a plus input. You drive it with touch and the AI button; the automatic demo is gone.
 Still no audio, motor, Wi-Fi or modules.
 
@@ -55,3 +55,18 @@ hold POWER and restore.
   reset pin is given (we pass none), so it drives no outputs.
 - `esp_lcd_touch`: installs a GPIO interrupt handler only when a callback is registered; we register
   none and poll instead.
+
+## On the board (2026-11-21)
+
+Touch works; swipes feel smooth. The CST9220 answered with its HYN212 protocol. Pin check at boot: 56/3
+open-drain with pull-ups on the I2C signals, 6 input with no output, 7 input with pull-up; motor,
+amp and rail unchanged (0, 0, 0). The 80 MHz picture is clean.
+
+| What | 40 MHz (03a) | 80 MHz (03b) |
+|---|---|---|
+| Ring | 62 fps, flush 2–3 ms | 62 fps, flush 3–4 ms |
+| Full-screen frame during a swipe or entrance | render 16–29 ms, flush 7–13 ms | render 15–29 ms, flush 3–6 ms |
+
+The link is no longer the bottleneck: drawing the fade (blending a whole plate at partial opacity) is.
+During a swipe LVGL draws about 20–50 frames a second. Next, if needed: slide without the fade, or
+render the outgoing plate once into a cached layer.
