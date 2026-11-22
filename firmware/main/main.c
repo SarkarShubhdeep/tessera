@@ -26,6 +26,8 @@
 #include "settings.h"
 #include <string.h>
 #include "ui.h"
+#include "setup.h"
+#include "setup_ap.h"
 
 static const char *TAG = "tessera";
 
@@ -368,6 +370,74 @@ static void claude_poll(lv_timer_t *t)
     }
 }
 
+/* ---------- setup from a phone (review 07): the plate follows the setup task ---------- */
+
+static volatile bool s_setup_ready;   /* setup_init has run (Wi-Fi is up enough to start a hotspot) */
+
+static void on_setup_action(ui_setup_action_t a)
+{
+    if (a == UI_SETUP_START) {
+        if (!s_setup_ready) {
+            ui_setup_message("Not ready yet", "Wi-Fi is still starting. Try again in a moment.");
+            return;
+        }
+        ui_setup_show_text("Starting…", "Opening the setup hotspot.");
+        setup_request_start();
+    } else {
+        setup_view_t v;
+        setup_get_view(&v);
+        if (v.stage == SETUP_JOIN || v.stage == SETUP_OPEN || v.stage == SETUP_PAGE) {
+            setup_request_stop(SETUP_END_CANCEL);
+        } else {
+            ui_setup_close();
+        }
+    }
+}
+
+static void setup_poll(lv_timer_t *t)
+{
+    (void)t;
+    static uint32_t seen;
+    setup_view_t v;
+    uint32_t ver = setup_get_view(&v);
+    if (ver != seen) {
+        seen = ver;
+        char line[64];
+        switch (v.stage) {
+        case SETUP_JOIN:
+            snprintf(line, sizeof(line), "%s \xc2\xb7 private, for this setup only", v.ssid);
+            ui_setup_show_qr("Scan to join", v.qr, line);
+            break;
+        case SETUP_OPEN:
+            ui_setup_show_qr("Scan to open", v.qr, "Opens the setup page on your phone");
+            break;
+        case SETUP_PAGE:
+            ui_setup_show_text("Continue on your phone",
+                               "The setup page is open. Save what you want to change, then tap Done there.");
+            break;
+        case SETUP_ENDED: {
+            static const char *const T[] = {"Setup finished", "Setup cancelled", "Setup timed out",
+                                            "Setup couldn't start"};
+            static const char *const L[] = {"The hotspot is off.", "The hotspot is off.",
+                                            "The hotspot switched off after 5 minutes.",
+                                            "The hotspot didn't start. Try again."};
+            ui_setup_message(T[v.end], L[v.end]);
+            break;
+        }
+        default:
+            break;
+        }
+    }
+    memset(&v, 0, sizeof(v));   /* the view can hold the hotspot password */
+    if (ui_setup_is_open()) {
+        setup_view_t tv;
+        setup_get_view(&tv);
+        bool running = tv.stage == SETUP_JOIN || tv.stage == SETUP_OPEN || tv.stage == SETUP_PAGE;
+        ui_setup_set_time(running ? tv.seconds_left : -1);
+        memset(&tv, 0, sizeof(tv));
+    }
+}
+
 static void claude_bring_up(void *arg)
 {
     (void)arg;
@@ -383,7 +453,9 @@ static void claude_bring_up(void *arg)
         ESP_LOGW(TAG, "Wi-Fi not up yet; still retrying in the background");
     }
     ESP_ERROR_CHECK(claude_start());
-    ESP_LOGI(TAG, "ready: hold the AI button and speak");
+    ESP_ERROR_CHECK(setup_init());
+    s_setup_ready = true;
+    ESP_LOGI(TAG, "ready: hold the AI button and speak; long-press the ring for setup");
     vTaskDelete(NULL);
 }
 
@@ -415,6 +487,8 @@ void app_main(void)
     lv_timer_create(ring_level, 33, NULL);
     lv_timer_create(ai_button_poll, 20, NULL);
     lv_timer_create(claude_poll, 50, NULL);
+    ui_setup_set_handler(on_setup_action);
+    lv_timer_create(setup_poll, 250, NULL);
     ui_show_splash(esp_app_get_description()->version);
     /* Wi-Fi and Claude start in their own task, so the screen keeps animating while they connect. */
     xTaskCreate(claude_bring_up, "bringup", 6144, NULL, 3, NULL);

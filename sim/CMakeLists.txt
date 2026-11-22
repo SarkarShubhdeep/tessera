@@ -19,6 +19,7 @@ add_executable(tessera_sim
     main.c
     ${TOP}/ui/ui.c
     ${TOP}/ui/plates.c
+    ${TOP}/ui/setup.c
     ${TS_FONTS}
     ${TOP}/third_party/cJSON/cJSON.c)
 target_include_directories(tessera_sim PRIVATE ${TOP} ${TOP}/ui ${TOP}/third_party/cJSON ${SDL2_INCLUDE_DIRS})

@@ -99,4 +99,6 @@ bool net_wait(int timeout_ms)
     return (b & UP_BIT) != 0;
 }
 
+bool net_started(void) { return s_started; }
+
 bool net_is_up(void) { return s_ev && (xEventGroupGetBits(s_ev) & UP_BIT); }

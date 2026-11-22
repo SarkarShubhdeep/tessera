@@ -14,4 +14,7 @@ esp_err_t net_apply(void);
 /* Wait until connected, up to timeout_ms. */
 bool net_wait(int timeout_ms);
 
+/* True while the home-network station is running (a name is saved). */
+bool net_started(void);
+
 bool net_is_up(void);

@@ -160,7 +160,7 @@ ul.facts { margin: 0; padding-left: 18px; color: var(--dim); display: grid; gap:
                  send: function (v) { return "key groq " + v + "\r"; } }
   };
 
-  var port = null, writer = null, reading = false;
+  var port = null, writer = null, reading = false, reader = null, piped = null;
   var enc = new TextEncoder();
   var $ = function (id) { return document.getElementById(id); };
 
@@ -228,8 +228,8 @@ ul.facts { margin: 0; padding-left: 18px; color: var(--dim); display: grid; gap:
     reading = true;
     var buf = "";
     var decoder = new TextDecoderStream();
-    var closed = port.readable.pipeTo(decoder.writable).catch(function () {});
-    var reader = decoder.readable.getReader();
+    piped = port.readable.pipeTo(decoder.writable).catch(function () {});
+    reader = decoder.readable.getReader();
     try {
       while (reading) {
         var r = await reader.read();
@@ -247,10 +247,9 @@ ul.facts { margin: 0; padding-left: 18px; color: var(--dim); display: grid; gap:
         });
       }
     } catch (e) {
-      reply("Lost the connection to the board.", "e");
+      if (reading) reply("Lost the connection to the board.", "e");
     } finally {
-      reader.releaseLock();
-      await closed;
+      try { reader.releaseLock(); } catch (e) {}
     }
   }
 
@@ -275,12 +274,16 @@ ul.facts { margin: 0; padding-left: 18px; color: var(--dim); display: grid; gap:
     }
   }
 
+  /* The port only closes once both its streams are unlocked: cancelling our reader cancels the pipe, which
+     * releases port.readable; the writer is released by closing it. Then the port itself closes. */
   async function disconnect() {
     reading = false;
-    try { if (writer) { writer.releaseLock(); } } catch (e) {}
-    writer = null;
-    try { if (port.readable) await port.readable.cancel(); } catch (e) {}
-    try { await port.close(); } catch (e) {}
+    try { if (reader) await reader.cancel(); } catch (e) {}
+    try { if (piped) await piped; } catch (e) {}
+    try { if (writer) await writer.close(); } catch (e) {}
+    try { if (writer) writer.releaseLock(); } catch (e) {}
+    writer = null; reader = null; piped = null;
+    try { await port.close(); } catch (e) { reply("The port didn't close cleanly; close this tab to release it.", "e"); }
     port = null;
     setConnected(false);
     reply("Disconnected.");

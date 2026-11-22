@@ -4,6 +4,7 @@
  * animation only inside small regions (the ring lives in a fixed 300 x 300 box). Full-screen moves
  * (plate enter, swipe) are short: see TS_MS_* in tokens.h. */
 #include "ui.h"
+#include "setup.h"
 
 #include <math.h>
 #include <stdlib.h>
@@ -281,9 +282,32 @@ int ui_deck_pos(void) { return s_pos; }
 
 /* ---------- input: tap cycles the orb; swipe and arrow keys move through the deck ---------- */
 
+/* A 10 s hold on the ring opens the Setup plate (review 07): long enough that it never opens by accident. The
+ * Setup plate still needs Start before anything radio-related happens. The tap that ends the hold is swallowed. */
+#define SETUP_HOLD_MS 10000
+static uint32_t s_press_at;
+static bool s_long_fired;
+
+static void on_press(lv_event_t *e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    if (code == LV_EVENT_PRESSED) {
+        s_press_at = lv_tick_get();
+        s_long_fired = false;
+    } else if (code == LV_EVENT_PRESSING && !s_long_fired && s_pos < 0 && !ui_setup_is_open() &&
+               lv_tick_elaps(s_press_at) >= SETUP_HOLD_MS) {
+        s_long_fired = true;
+        ui_setup_open();
+    }
+}
+
 static void on_tap(lv_event_t *e)
 {
     (void)e;
+    if (s_long_fired) {
+        s_long_fired = false;
+        return;
+    }
     if (s_pos < 0) {
         ui_set_state((ui_state_t)((s_state + 1) % UI_STATE_COUNT));
     }
@@ -380,6 +404,8 @@ void ui_create(void)
     lv_obj_set_style_bg_opa(s_scr, LV_OPA_COVER, 0);
     lv_obj_remove_flag(s_scr, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_event_cb(s_scr, on_tap, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(s_scr, on_press, LV_EVENT_PRESSED, NULL);
+    lv_obj_add_event_cb(s_scr, on_press, LV_EVENT_PRESSING, NULL);
     lv_obj_add_event_cb(s_scr, on_gesture, LV_EVENT_GESTURE, NULL);
     lv_obj_add_event_cb(s_scr, on_key, LV_EVENT_KEY, NULL);
 
