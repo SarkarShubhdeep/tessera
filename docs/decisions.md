@@ -81,3 +81,32 @@ Common agent-UI practice, which the ring follows:
 **Revised 2026-11-22:** on the board, listening and speaking looked the same (both spiked outward).
 Listening now opens the ring out and points its spikes inward (sound coming in); speaking stays tight
 and points outward (sound going out). Direction, not just size, tells the two apart.
+
+## 009: Speech-to-text through Groq's hosted Whisper (2026-11-22)
+
+**Chose:** the device sends the clip recorded while the AI button is held to Groq's
+`whisper-large-v3-turbo` (an open-source model) and sends the returned text to Claude.
+**Considered:** on-device recognition, Whisper on the Mac (whisper.cpp), and other hosted speech APIs.
+
+Why a speech-to-text step at all: the Claude Messages API takes text, images and documents, not audio.
+The Claude apps do this step themselves before sending text to the model; the device has to do the same.
+
+- **On the device:** free speech recognition needs a model of tens of millions of parameters (Whisper
+  tiny is about 39 M, ~75 MB). The S31 has 16 MB of PSRAM and no accelerator. Espressif's ESP-SR runs
+  here but only recognises a wake word and a fixed list of commands, not free speech. Kept as a later
+  add-on for instant fixed commands.
+- **Whisper on the Mac (whisper.cpp):** free and private (audio stays at home), but the device would only
+  work while the Mac is on. The goal is Mosaico plus Claude, nothing else.
+- **Hosted APIs with a free tier (checked November 2026):** Groq (Whisper, about 2,000 requests and 8 hours
+  of audio a day), Cloudflare Workers AI (Whisper, ~200 minutes a day), Google Cloud (60 minutes a
+  month), ElevenLabs (~30 minutes a month), Deepgram and AssemblyAI (one-time sign-up credit).
+
+**Why Groq:** it is built for low latency (a short clip transcribes in well under a second), its free
+tier covers far more than a desk device uses, and it runs an open-source model, so the provider can be
+swapped (Cloudflare runs the same model) without changing what the device expects. Its endpoint takes
+16 kHz WAV, which is what the mic already records, and `api.groq.com` uses the same certificate chain
+(Google Trust Services) the firmware already trusts.
+
+**Costs:** the clip leaves the home network for Groq, and a second key is needed, which the owner enters
+on the device; it is stored in Tessera's own settings namespace, separate from ESP-Claw's. Free tiers
+change, so check Groq's own limits before relying on them.
