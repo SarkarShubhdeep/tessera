@@ -35,6 +35,16 @@
 esp_err_t board_display_init(esp_lcd_panel_io_color_trans_done_cb_t on_done, void *ctx,
                              esp_lcd_panel_handle_t *ret_panel);
 
+/* Pin review 03: I2S to the ES8311 (microphone only). */
+#define BOARD_GPIO_I2S_MCLK  54
+#define BOARD_GPIO_I2S_BCLK  37
+#define BOARD_GPIO_I2S_WS    49
+#define BOARD_GPIO_I2S_DIN   40   /* input */
+/* GPIO52 (I2S DOUT) and GPIO45 (amp enable, held low) are deliberately not used. */
+
+/* The on-board I2C bus (created by board_touch_init). */
+void *board_i2c_bus(void);
+
 /* On-board I2C bus, then the CST9220 touch controller on it (address 0x5A only). */
 esp_err_t board_touch_init(esp_lcd_touch_handle_t *ret_touch);
 

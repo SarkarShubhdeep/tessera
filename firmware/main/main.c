@@ -2,7 +2,7 @@
  *
  * Runs the same surface as the Mac simulator (ui/). Tap the ring to cycle its states, swipe through
  * five example plates, hold the AI button to "talk" (a stand-in until the engine exists). LVGL's
- * monitor logs FPS and CPU to the console.
+ * monitor logs FPS and CPU to the console. While listening, the ring follows the real microphone.
  *
  * No audio, motor, Wi-Fi or modules: see docs/pin-review-01-screen.md and -02-input.md. */
 #include <math.h>
@@ -15,6 +15,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "lvgl.h"
+#include "mic.h"
 #include "ui.h"
 
 static const char *TAG = "tessera";
@@ -81,10 +82,15 @@ extern const char p_gauge[] asm("_binary_06_gauge_json_start");
 static const char *const PLATES[] = {p_timer, p_number, p_list, p_choice, p_gauge};
 #define N_PLATES (sizeof(PLATES) / sizeof(PLATES[0]))
 
-/* Stand-in audio level (the simulator's and landing page's curve) until the codec is wired up. */
-static void fake_voice(lv_timer_t *t)
+/* Audio level for the ring: the real microphone while listening; the stand-in curve (the simulator's
+ * and landing page's) while speaking, until the speaker path exists. */
+static void ring_level(lv_timer_t *t)
 {
     (void)t;
+    if (ui_get_state() == UI_STATE_LISTENING) {
+        ui_set_level(mic_level());
+        return;
+    }
     float s = lv_tick_get() / 1000.0f;
     float syl = fmaxf(0.0f, sinf(s * 6.1f)) * (0.55f + 0.45f * sinf(s * 1.3f));
     float grit = 0.5f + 0.5f * sinf(s * 17.0f);
@@ -151,6 +157,7 @@ void app_main(void)
 
     ESP_ERROR_CHECK(board_touch_init(&s_touch));
     ESP_ERROR_CHECK(board_ai_button_init());
+    ESP_ERROR_CHECK(mic_start());
     board_dump_pins();   /* and once more with the inputs configured */
 
     ui_create();
@@ -167,7 +174,7 @@ void app_main(void)
     }
     ui_set_state(UI_STATE_IDLE);
 
-    lv_timer_create(fake_voice, 33, NULL);
+    lv_timer_create(ring_level, 33, NULL);
     lv_timer_create(ai_button_poll, 20, NULL);
 
     while (1) {

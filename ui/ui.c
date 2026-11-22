@@ -101,6 +101,7 @@ static uint32_t s_last_ms;
 static lv_timer_t *s_ring_timer;
 
 void ui_set_level(uint8_t level) { s_level_in = level; }
+ui_state_t ui_get_state(void) { return s_state; }
 
 static float approach(float cur, float target, float k) { return cur + (target - cur) * k; }
 

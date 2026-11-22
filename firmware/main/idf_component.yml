@@ -3,3 +3,4 @@ dependencies:
   # The versions ESP-Claw's Mosaico build ran on the board.
   espressif/esp_lcd_co5300: "2.2.0"
   espressif/esp_lcd_touch_cst9220: "^0.1.2"
+  espressif/esp_codec_dev: "1.6.2"

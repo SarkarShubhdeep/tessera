@@ -163,6 +163,10 @@ esp_err_t board_display_init(esp_lcd_panel_io_color_trans_done_cb_t on_done, voi
 }
 
 /* ---------- 10-12: on-board I2C and the touch controller ---------- */
+static i2c_master_bus_handle_t s_i2c;
+
+void *board_i2c_bus(void) { return s_i2c; }
+
 esp_err_t board_touch_init(esp_lcd_touch_handle_t *ret_touch)
 {
     const i2c_master_bus_config_t bus_cfg = {
@@ -173,8 +177,8 @@ esp_err_t board_touch_init(esp_lcd_touch_handle_t *ret_touch)
         .glitch_ignore_cnt = 7,
         .flags.enable_internal_pullup = true,
     };
-    i2c_master_bus_handle_t bus;
-    ESP_RETURN_ON_ERROR(i2c_new_master_bus(&bus_cfg, &bus), TAG, "i2c bus");
+    ESP_RETURN_ON_ERROR(i2c_new_master_bus(&bus_cfg, &s_i2c), TAG, "i2c bus");
+    i2c_master_bus_handle_t bus = s_i2c;
 
     esp_lcd_panel_io_i2c_config_t io_cfg = ESP_LCD_TOUCH_IO_I2C_CST9220_CONFIG();
     esp_lcd_panel_io_handle_t io;
@@ -211,8 +215,10 @@ void board_dump_pins(void)
                           (1ULL << BOARD_GPIO_LCD_SCLK) | (1ULL << BOARD_GPIO_LCD_D0) | (1ULL << BOARD_GPIO_LCD_D1) |
                           (1ULL << BOARD_GPIO_LCD_D2) | (1ULL << BOARD_GPIO_LCD_D3) | (1ULL << BOARD_GPIO_LCD_CS) |
                           (1ULL << BOARD_GPIO_LCD_RST) | (1ULL << BOARD_GPIO_I2C_SDA) | (1ULL << BOARD_GPIO_I2C_SCL) |
-                          (1ULL << BOARD_GPIO_TOUCH_INT) | (1ULL << BOARD_GPIO_AI_BTN) | (1ULL << 57) | (1ULL << 34);
-    printf("--- pin check (compare with docs/pin-review-01-screen.md and -02-input.md) ---\n");
+                          (1ULL << BOARD_GPIO_TOUCH_INT) | (1ULL << BOARD_GPIO_AI_BTN) | (1ULL << BOARD_GPIO_I2S_MCLK) |
+                          (1ULL << BOARD_GPIO_I2S_BCLK) | (1ULL << BOARD_GPIO_I2S_WS) | (1ULL << BOARD_GPIO_I2S_DIN) |
+                          (1ULL << 52) | (1ULL << 57) | (1ULL << 34);
+    printf("--- pin check (compare with docs/pin-review-01-screen.md and -02-input.md, -03-mic.md) ---\n");
     gpio_dump_io_configuration(stdout, mask);
     ESP_LOGI(TAG, "levels: motor(8)=%d (want 0), pa(45)=%d (want 0), vcc_en(60)=%d (want 0 = rail on)",
              gpio_get_level(BOARD_GPIO_MOTOR), gpio_get_level(BOARD_GPIO_PA_EN), gpio_get_level(BOARD_GPIO_VCC_EN));

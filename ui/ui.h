@@ -19,6 +19,9 @@ void ui_create(void);
 /* Orb state (the engine's `state` event). Shows the orb if a plate is up. */
 void ui_set_state(ui_state_t state);
 
+/* Current ring state. */
+ui_state_t ui_get_state(void);
+
 /* Live audio level, 0-255: the microphone while listening, the speaker while speaking. The engine
  * calls this ~30 times a second; the ring's segment lengths follow it. */
 void ui_set_level(uint8_t level);
