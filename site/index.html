@@ -223,6 +223,8 @@ section { border-bottom: 1px solid var(--border); }
 .flow h3 { font-size: var(--step-1); font-weight: 700; }
 .flow p { color: var(--muted-foreground); font-size: 0.9375rem; }
 @media (max-width: 860px) { .flow { grid-template-columns: 1fr 1fr; } .flow > div:nth-child(3) { border-left: 0; } .flow > div:nth-child(n+3) { border-top: 1px solid var(--border); } }
+.flow-note { margin-top: 0.75rem; }
+.flow-note a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 @media (max-width: 520px) { .flow { grid-template-columns: 1fr; } .flow > div + div { border-left: 0; border-top: 1px solid var(--border); } }
 
 /* ---------- plate explorer ---------- */
@@ -439,10 +441,11 @@ footer p { color: var(--muted-foreground); font-size: 0.875rem; max-width: 60ch;
       </div>
       <div class="flow">
         <div><span class="n">STEP 1</span><h3>You ask</h3><p>Hold the orange AI button, speak, let go.</p></div>
-        <div><span class="n">STEP 2</span><h3>Claude picks a plate</h3><p>Through one tool, <code class="mono">show_plate</code>.</p></div>
-        <div><span class="n">STEP 3</span><h3>The engine checks it</h3><p>Unknown types fall back to a plain answer.</p></div>
-        <div><span class="n">STEP 4</span><h3>The device draws it</h3><p>Natively, redrawing only what changes.</p></div>
+        <div><span class="n">STEP 2</span><h3>Groq writes it down</h3><p>Whisper turns the recording into words. Claude takes text, not audio.</p></div>
+        <div><span class="n">STEP 3</span><h3>Claude picks a plate</h3><p>Through one tool, <code class="mono">show_plate</code>.</p></div>
+        <div><span class="n">STEP 4</span><h3>The device draws it</h3><p>Natively. Unknown types fall back to a plain answer.</p></div>
       </div>
+      <p class="note flow-note">Measured on the Mosaico: 4.9 s from letting go to the plate (Groq 2.5 s, Claude 2.3 s). No phone or computer in between. <a href="https://github.com/SarkarShubhdeep/tessera/blob/main/docs/decisions.md#009-speech-to-text-through-groqs-hosted-whisper-2026-11-22" target="_blank" rel="noopener">Why Groq</a> · <a href="https://github.com/SarkarShubhdeep/tessera/blob/main/docs/review-05-voice.md" target="_blank" rel="noopener">How voice was built</a></p>
     </div>
   </section>
 
@@ -643,10 +646,10 @@ footer p { color: var(--muted-foreground); font-size: 0.875rem; max-width: 60ch;
       </div>
       <div class="road">
         <ol>
-          <li class="now"><span class="n">01</span><div><h3>Design system</h3><p>Plate types, type scale, spacing and motion, in the simulator.</p></div><span class="badge badge-live">Now</span></li>
-          <li><span class="n">02</span><div><h3>Interaction prototype</h3><p>The full grammar against a fake agent, clickable on a Mac.</p></div><span class="badge">Next</span></li>
-          <li><span class="n">03</span><div><h3>Mosaico bring-up</h3><p>Display at 60 fps, touch, audio and haptics, measured on the board.</p></div><span class="badge">Planned</span></li>
-          <li><span class="n">04</span><div><h3>Engine</h3><p>The slim ESP-Claw core talking to Claude, with MCP.</p></div><span class="badge">Planned</span></li>
+          <li><span class="n">01</span><div><h3>Design system</h3><p>Plate types, type scale, spacing and motion, in the simulator.</p></div><span class="badge">Done</span></li>
+          <li><span class="n">02</span><div><h3>Mosaico bring-up</h3><p>Screen at 60 fps, touch, AI button and microphone, each step reviewed before flashing.</p></div><span class="badge">Done</span></li>
+          <li><span class="n">03</span><div><h3>Claude and voice</h3><p>Speak, and the answer arrives as a plate. Over Wi-Fi, with Groq for speech to text.</p></div><span class="badge">Done</span></li>
+          <li class="now"><span class="n">04</span><div><h3>Speaker, haptics, live data</h3><p>Spoken replies, detents, and plates that stay up to date.</p></div><span class="badge badge-live">Next</span></li>
           <li><span class="n">05</span><div><h3>Second board</h3><p>An ESP32-S3 display, to prove one interface scales from 240 to 480 px.</p></div><span class="badge">Planned</span></li>
         </ol>
       </div>
