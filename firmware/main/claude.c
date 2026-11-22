@@ -12,6 +12,7 @@
 #include "esp_http_client.h"
 #include "esp_log.h"
 #include "esp_timer.h"
+#include "clock.h"
 #include "groq.h"
 #include "keys.h"
 #include "net.h"
@@ -27,7 +28,9 @@ extern const char ROOTS_PEM[] asm("_binary_anthropic_roots_pem_start");
 
 #define URL        "https://api.anthropic.com/v1/messages"
 #define MODEL      "claude-opus-5-5"
-#define BODY_MAX   (64 * 1024)
+#define BODY_MAX   (512 * 1024)   /* web search replies are bigger (review 08); PSRAM, allocated once */
+#define RESUMES    2              /* pause_turn: times to let a long search finish */
+#define SEARCHES   3              /* web searches per question at most */
 
 static const char *SYSTEM_PROMPT =
     "You are Tessera, the assistant on a small square 480x480 screen with one button. "
@@ -41,7 +44,11 @@ static const char *SYSTEM_PROMPT =
     "- choice: question, options (2 to 4 short strings), selected (-1 if none). When the user must pick.\n"
     "- gauge: label, value, min, max, unit, detail. For a value in a known range.\n"
     "- timer: label, seconds. When asked to time something.\n"
-    "Keep every string short: the screen is small and the type is large. No markdown.";
+    "Keep every string short: the screen is small and the type is large. No markdown.\n"
+    "You can search the web with web_search. Use it only when the answer needs live or recent facts "
+    "(weather, news, scores, prices, opening hours, events), not for things you already know. Search as "
+    "little as you can. When you used a search, put the source's name (the site) in the plate's source or "
+    "detail field. If the user's place is given, \"here\" and \"near me\" mean that place.";
 
 static const char *TOOL_JSON =
     "{\"name\":\"show_plate\","
@@ -71,12 +78,15 @@ static volatile bool s_busy;
 typedef struct {
     char *buf;
     int len;
+    bool truncated;
 } body_t;
 
 static esp_err_t on_http(esp_http_client_event_t *e)
 {
     body_t *b = e->user_data;
-    if (e->event_id == HTTP_EVENT_ON_DATA && b->len + e->data_len < BODY_MAX) {
+    if (e->event_id == HTTP_EVENT_ON_DATA && b->len + e->data_len >= BODY_MAX) {
+        b->truncated = true;
+    } else if (e->event_id == HTTP_EVENT_ON_DATA) {
         memcpy(b->buf + b->len, e->data, e->data_len);
         b->len += e->data_len;
         b->buf[b->len] = '\0';
@@ -95,17 +105,40 @@ static cJSON *answer_plate(const char *text, const char *label)
     return p;
 }
 
-static char *build_request(const char *question)
+/* The request, as cJSON so a paused search can be resumed by appending Claude's turn. */
+static cJSON *build_request(const char *question)
 {
+    /* Instructions start with the local time and the place (review 08). The place is personal: it goes to
+     * Anthropic as part of the request, and is never logged. */
+    char now[160], place[KEYS_MAX + 1];
+    clock_line(now, sizeof(now));
+    size_t n = strlen(now) + strlen(SYSTEM_PROMPT) + sizeof(place) + 64;
+    char *sys = malloc(n);
+    if (keys_get(KEY_PLACE, place, sizeof(place)) != KEY_SRC_NONE) {
+        snprintf(sys, n, "%s The user is in %s.\n%s", now, place, SYSTEM_PROMPT);
+    } else {
+        snprintf(sys, n, "%s The user's place isn't set; ask them to set it if they ask about \"here\".\n%s",
+                 now, SYSTEM_PROMPT);
+    }
+    memset(place, 0, sizeof(place));
+
     cJSON *req = cJSON_CreateObject();
     cJSON_AddStringToObject(req, "model", MODEL);
     cJSON_AddNumberToObject(req, "max_tokens", 16000);
     cJSON *oc = cJSON_AddObjectToObject(req, "output_config");
     cJSON_AddStringToObject(oc, "effort", "low");
     cJSON_AddStringToObject(req, "fallbacks", "default");
-    cJSON_AddStringToObject(req, "system", SYSTEM_PROMPT);
+    cJSON_AddStringToObject(req, "system", sys);
+    memset(sys, 0, n);
+    free(sys);
     cJSON *tools = cJSON_AddArrayToObject(req, "tools");
     cJSON_AddItemToArray(tools, cJSON_Parse(TOOL_JSON));
+    /* Anthropic's server-side web search: it runs and filters the search; the board never visits a site. */
+    cJSON *ws = cJSON_CreateObject();
+    cJSON_AddStringToObject(ws, "type", "web_search_20260209");
+    cJSON_AddStringToObject(ws, "name", "web_search");
+    cJSON_AddNumberToObject(ws, "max_uses", SEARCHES);
+    cJSON_AddItemToArray(tools, ws);
     cJSON *tc = cJSON_AddObjectToObject(req, "tool_choice");
     cJSON_AddStringToObject(tc, "type", "auto");
     cJSON *msgs = cJSON_AddArrayToObject(req, "messages");
@@ -113,19 +146,12 @@ static char *build_request(const char *question)
     cJSON_AddStringToObject(m, "role", "user");
     cJSON_AddStringToObject(m, "content", question);
     cJSON_AddItemToArray(msgs, m);
-    char *s = cJSON_PrintUnformatted(req);
-    cJSON_Delete(req);
-    return s;
+    return req;
 }
 
 /* Turn a Messages API response into a plate spec. */
-static cJSON *plate_from_response(int status, const char *body)
+static cJSON *plate_from_response(int status, cJSON *r)
 {
-    cJSON *r = cJSON_Parse(body);
-    if (!r) {
-        ESP_LOGE(TAG, "HTTP %d, unreadable response", status);
-        return answer_plate("No answer: the reply couldn't be read.", "Error");
-    }
     cJSON *plate = NULL;
     if (status != 200) {
         cJSON *err = cJSON_GetObjectItem(r, "error");
@@ -138,9 +164,13 @@ static cJSON *plate_from_response(int status, const char *body)
     } else {
         const char *stop = cJSON_GetStringValue(cJSON_GetObjectItem(r, "stop_reason"));
         cJSON *usage = cJSON_GetObjectItem(r, "usage");
-        ESP_LOGI(TAG, "stop %s, tokens in %d / out %d", stop ? stop : "?",
+        cJSON *stu = cJSON_GetObjectItem(usage, "server_tool_use");
+        ESP_LOGI(TAG, "stop %s, tokens in %d / out %d, web searches %d", stop ? stop : "?",
                  (int)cJSON_GetNumberValue(cJSON_GetObjectItem(usage, "input_tokens")),
-                 (int)cJSON_GetNumberValue(cJSON_GetObjectItem(usage, "output_tokens")));
+                 (int)cJSON_GetNumberValue(cJSON_GetObjectItem(usage, "output_tokens")),
+                 cJSON_IsNumber(cJSON_GetObjectItem(stu, "web_search_requests"))
+                     ? (int)cJSON_GetNumberValue(cJSON_GetObjectItem(stu, "web_search_requests"))
+                     : 0);
         if (stop && strcmp(stop, "refusal") == 0) {
             plate = answer_plate("Claude declined that request.", "Claude");
         } else {
@@ -165,55 +195,87 @@ static cJSON *plate_from_response(int status, const char *body)
             }
         }
     }
-    cJSON_Delete(r);
     return plate;
 }
 
 static cJSON *ask_claude(const char *q, body_t *body)
 {
-    /* Read for each question (review 06): Tessera's saved key, else ESP-Claw's. Not kept in RAM. */
+    /* Read for each question (review 06): Tessera's saved key, else ESP-Claw's. Wiped when done. */
     char key[KEYS_MAX + 1];
     if (keys_get(KEY_CLAUDE, key, sizeof(key)) == KEY_SRC_NONE) {
-        return answer_plate("No Claude key saved. Type key claude and the key into the console.", "Setup");
+        return answer_plate("No Claude key saved. Set it on the setup page.", "Setup");
     }
     if (!net_is_up()) {
         memset(key, 0, sizeof(key));
         return answer_plate("No Wi-Fi, so nothing was sent.", "Error");
     }
-    ESP_LOGI(TAG, "asking: %s", q);
-    char *req = build_request(q);
-    esp_http_client_config_t cfg = {
-        .url = URL,
-        .method = HTTP_METHOD_POST,
-        .timeout_ms = 90000,
-        .cert_pem = ROOTS_PEM,
-        .event_handler = on_http,
-        .user_data = body,
-        .buffer_size = 4096,
-        .buffer_size_tx = 2048,
-    };
-    body->len = 0;
-    body->buf[0] = '\0';
-    int64_t t0 = esp_timer_get_time();
-    esp_http_client_handle_t c = esp_http_client_init(&cfg);
-    esp_http_client_set_header(c, "content-type", "application/json");
-    esp_http_client_set_header(c, "x-api-key", key);   /* copied by the client; ours is wiped next */
-    memset(key, 0, sizeof(key));
-    esp_http_client_set_header(c, "anthropic-version", "2026-10-21");
-    esp_http_client_set_header(c, "anthropic-beta", "server-side-fallback-2026-07-01");
-    esp_http_client_set_post_field(c, req, strlen(req));
-    esp_err_t err = esp_http_client_perform(c);
-    int status = esp_http_client_get_status_code(c);
-    esp_http_client_cleanup(c);
-    free(req);
-
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "request failed: %s", esp_err_to_name(err));
-        return answer_plate("No connection to Claude.", "Error");
+    if (!clock_wait(10000)) {
+        ESP_LOGW(TAG, "clock not set yet; asking without the time");
     }
-    ESP_LOGI(TAG, "reply in %d ms (HTTP %d, %d bytes)", (int)((esp_timer_get_time() - t0) / 1000), status,
-             body->len);
-    return plate_from_response(status, body->buf);
+    ESP_LOGI(TAG, "asking: %s", q);
+    cJSON *req = build_request(q);
+    cJSON *plate = NULL;
+    int64_t t0 = esp_timer_get_time();
+    for (int round = 0; round <= RESUMES && !plate; round++) {
+        char *json = cJSON_PrintUnformatted(req);
+        esp_http_client_config_t cfg = {
+            .url = URL,
+            .method = HTTP_METHOD_POST,
+            .timeout_ms = 120000,
+            .cert_pem = ROOTS_PEM,
+            .event_handler = on_http,
+            .user_data = body,
+            .buffer_size = 4096,
+            .buffer_size_tx = 4096,
+        };
+        body->len = 0;
+        body->truncated = false;
+        body->buf[0] = '\0';
+        esp_http_client_handle_t c = esp_http_client_init(&cfg);
+        esp_http_client_set_header(c, "content-type", "application/json");
+        esp_http_client_set_header(c, "x-api-key", key);   /* copied by the client */
+        esp_http_client_set_header(c, "anthropic-version", "2026-10-21");
+        esp_http_client_set_header(c, "anthropic-beta", "server-side-fallback-2026-07-01");
+        esp_http_client_set_post_field(c, json, strlen(json));
+        esp_err_t err = esp_http_client_perform(c);
+        int status = esp_http_client_get_status_code(c);
+        esp_http_client_cleanup(c);
+        cJSON_free(json);
+
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "request failed: %s", esp_err_to_name(err));
+            plate = answer_plate("No connection to Claude.", "Error");
+            break;
+        }
+        ESP_LOGI(TAG, "reply in %d ms (HTTP %d, %d bytes%s)", (int)((esp_timer_get_time() - t0) / 1000), status,
+                 body->len, body->truncated ? ", too big: cut off" : "");
+        cJSON *r = cJSON_Parse(body->buf);
+        if (!r) {
+            ESP_LOGE(TAG, "HTTP %d, unreadable response", status);
+            plate = answer_plate("No answer: the reply couldn't be read.", "Error");
+            break;
+        }
+        const char *stop = cJSON_GetStringValue(cJSON_GetObjectItem(r, "stop_reason"));
+        if (status == 200 && stop && strcmp(stop, "pause_turn") == 0 && round < RESUMES) {
+            /* A long search paused: send the conversation back as is and the search continues. */
+            ESP_LOGI(TAG, "search still running (pause_turn); resuming");
+            cJSON *turn = cJSON_CreateObject();
+            cJSON_AddStringToObject(turn, "role", "assistant");
+            cJSON_AddItemToObject(turn, "content", cJSON_DetachItemFromObject(r, "content"));
+            cJSON_AddItemToArray(cJSON_GetObjectItem(req, "messages"), turn);
+            cJSON_Delete(r);
+            continue;
+        }
+        plate = plate_from_response(status, r);
+        cJSON_Delete(r);
+    }
+    memset(key, 0, sizeof(key));
+    cJSON_Delete(req);
+    if (!plate) {
+        plate = answer_plate("The search took too long. Try asking again.", "Claude");
+    }
+    ESP_LOGI(TAG, "answered in %d ms", (int)((esp_timer_get_time() - t0) / 1000));
+    return plate;
 }
 
 static void emit(claude_evt_kind_t kind, cJSON *plate, const char *text)

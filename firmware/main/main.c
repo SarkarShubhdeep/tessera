@@ -21,6 +21,7 @@
 #include "lvgl.h"
 #include "mic.h"
 #include "claude.h"
+#include "clock.h"
 #include "keys.h"
 #include "net.h"
 #include "settings.h"
@@ -185,7 +186,8 @@ static void ai_button_poll(lv_timer_t *t)
  * Replies use the "setup" tag, so tools/setup.html can show only those. */
 static const char *SETUP = "setup";
 
-static const char *const KEY_NAME[KEY_COUNT] = {"wifi name", "wifi password", "claude key", "groq key"};
+static const char *const KEY_NAME[KEY_COUNT] = {"wifi name", "wifi password", "claude key", "groq key",
+                                                "time zone", "place"};
 static const char *const SRC_NAME[] = {"missing", "saved in tessera", "from ESP-Claw"};
 
 static void print_status(void)
@@ -250,17 +252,21 @@ static void key_command(char *line)
     const char *arg = after_spaces(line + 3);
     if (strcmp(arg, "status") == 0) {
         print_status();
-    } else if (strncmp(arg, "groq ", 5) == 0 || strncmp(arg, "claude ", 7) == 0) {
-        key_id_t id = arg[0] == 'g' ? KEY_GROQ : KEY_CLAUDE;
+    } else if (strncmp(arg, "groq ", 5) == 0 || strncmp(arg, "claude ", 7) == 0 || strncmp(arg, "tz ", 3) == 0 ||
+               strncmp(arg, "place ", 6) == 0) {
+        key_id_t id = arg[0] == 'g' ? KEY_GROQ : arg[0] == 'c' ? KEY_CLAUDE : arg[0] == 't' ? KEY_TZ : KEY_PLACE;
         const char *v = after_spaces(strchr(arg, ' '));
         if (strcmp(v, "clear") == 0) {
             clear(id);
         } else {
             save(id, v);
         }
+        if (id == KEY_TZ) {
+            clock_apply_tz();
+        }
     } else {
-        ESP_LOGW(SETUP, "key commands: key status | key claude <key> | key claude clear | key groq <key> | "
-                      "key groq clear");
+        ESP_LOGW(SETUP, "key commands: key status | key claude|groq|tz|place <value> | key claude|groq|tz|place "
+                      "clear");
     }
 }
 
@@ -449,6 +455,7 @@ static void claude_bring_up(void *arg)
     keys_log_stats("at boot");
     print_status();
     ESP_ERROR_CHECK(net_init());
+    clock_start();   /* SNTP syncs once Wi-Fi is up (review 08) */
     if (net_apply() == ESP_OK && !net_wait(20000)) {
         ESP_LOGW(TAG, "Wi-Fi not up yet; still retrying in the background");
     }
@@ -488,6 +495,7 @@ void app_main(void)
     lv_timer_create(ai_button_poll, 20, NULL);
     lv_timer_create(claude_poll, 50, NULL);
     ui_setup_set_handler(on_setup_action);
+    ui_set_clock_source(clock_hm);
     lv_timer_create(setup_poll, 250, NULL);
     ui_show_splash(esp_app_get_description()->version);
     /* Wi-Fi and Claude start in their own task, so the screen keeps animating while they connect. */

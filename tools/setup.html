@@ -118,6 +118,23 @@ ul.facts { margin: 0; padding-left: 18px; color: var(--dim); display: grid; gap:
       </div>
       <div class="hint" data-hint></div>
     </div>
+    <div class="row" data-id="tz">
+      <div class="row-head"><b>Time zone</b><span class="state" data-state>–</span></div>
+      <div class="field">
+        <div class="box"><input type="text" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="80" placeholder="POSIX form, e.g. EST5EDT,M3.2.0,M11.1.0" aria-label="Time zone"></div>
+        <button class="save" type="button" disabled>Save</button>
+      </div>
+      <div class="actions"><button class="quiet tz-here" type="button" hidden></button></div>
+      <div class="hint" data-hint></div>
+    </div>
+    <div class="row" data-id="place">
+      <div class="row-head"><b>Place</b><span class="state" data-state>–</span></div>
+      <div class="field">
+        <div class="box"><input type="text" autocomplete="off" spellcheck="false" maxlength="80" placeholder="City and region, for &quot;weather here&quot;" aria-label="Place"></div>
+        <button class="save" type="button" disabled>Save</button>
+      </div>
+      <div class="hint" data-hint></div>
+    </div>
   </section>
 
   <div class="actions">
@@ -125,6 +142,8 @@ ul.facts { margin: 0; padding-left: 18px; color: var(--dim); display: grid; gap:
     <button class="quiet" type="button" id="clearWifi" disabled>Clear Wi-Fi</button>
     <button class="quiet" type="button" id="clearClaude" disabled>Clear Claude key</button>
     <button class="quiet" type="button" id="clearGroq" disabled>Clear Groq key</button>
+    <button class="quiet" type="button" id="clearTz" disabled>Clear time zone</button>
+    <button class="quiet" type="button" id="clearPlace" disabled>Clear place</button>
   </div>
 
   <section aria-label="Board replies">
@@ -138,7 +157,7 @@ ul.facts { margin: 0; padding-left: 18px; color: var(--dim); display: grid; gap:
       <li>It reaches the board only through the USB cable (Chrome's Web Serial). Nothing goes over Wi-Fi or the internet.</li>
       <li>It can't load or send anything on the network: its Content Security Policy blocks every request.</li>
       <li>It never stores a value. Each field is emptied after Save.</li>
-      <li>The board replies only "saved", "missing" or "cleared" and a length, never the value.</li>
+      <li>The board replies only "saved", "missing" or "cleared" and a length, never the value. Time zone and place too: they say roughly where you live.</li>
       <li>Close <code>screen</code> or any other program using the board's port first.</li>
     </ul>
   </section>
@@ -157,9 +176,39 @@ ul.facts { margin: 0; padding-left: 18px; color: var(--dim); display: grid; gap:
     claude:    { status: "claude key", min: 20, max: 300, prefix: "sk-ant-", token: true,
                  send: function (v) { return "key claude " + v + "\r"; } },
     groq:      { status: "groq key", min: 20, max: 200, prefix: "gsk_", token: true,
-                 send: function (v) { return "key groq " + v + "\r"; } }
+                 send: function (v) { return "key groq " + v + "\r"; } },
+    tz:        { status: "time zone", min: 3, max: 80, prefix: null, token: false,
+                 send: function (v) { return "key tz " + v + "\r"; } },
+    place:     { status: "place", min: 1, max: 80, prefix: null, token: false,
+                 send: function (v) { return "key place " + v + "\r"; } }
   };
 
+  /* Common time zones in POSIX form, which the board's clock needs (review 08). Anything else: type it. */
+  var TZ = {
+    "America/New_York": "EST5EDT,M3.2.0,M11.1.0", "America/Detroit": "EST5EDT,M3.2.0,M11.1.0",
+    "America/Toronto": "EST5EDT,M3.2.0,M11.1.0", "America/Indiana/Indianapolis": "EST5EDT,M3.2.0,M11.1.0",
+    "America/Chicago": "CST6CDT,M3.2.0,M11.1.0", "America/Winnipeg": "CST6CDT,M3.2.0,M11.1.0",
+    "America/Denver": "MST7MDT,M3.2.0,M11.1.0", "America/Edmonton": "MST7MDT,M3.2.0,M11.1.0",
+    "America/Phoenix": "MST7", "America/Los_Angeles": "PST8PDT,M3.2.0,M11.1.0",
+    "America/Vancouver": "MST7", "America/Anchorage": "AKST9AKDT,M3.2.0,M11.1.0",
+    "Pacific/Honolulu": "HST10", "America/Mexico_City": "CST6", "America/Sao_Paulo": "<-03>3",
+    "Europe/London": "GMT0BST,M3.5.0/1,M10.5.0", "Europe/Dublin": "IST-1GMT0,M10.5.0,M3.5.0/1",
+    "Europe/Lisbon": "WET0WEST,M3.5.0/1,M10.5.0", "Europe/Paris": "CET-1CEST,M3.5.0,M10.5.0/3",
+    "Europe/Berlin": "CET-1CEST,M3.5.0,M10.5.0/3", "Europe/Madrid": "CET-1CEST,M3.5.0,M10.5.0/3",
+    "Europe/Rome": "CET-1CEST,M3.5.0,M10.5.0/3", "Europe/Amsterdam": "CET-1CEST,M3.5.0,M10.5.0/3",
+    "Europe/Stockholm": "CET-1CEST,M3.5.0,M10.5.0/3", "Europe/Warsaw": "CET-1CEST,M3.5.0,M10.5.0/3",
+    "Europe/Athens": "EET-2EEST,M3.5.0/3,M10.5.0/4", "Europe/Helsinki": "EET-2EEST,M3.5.0/3,M10.5.0/4",
+    "Europe/Kyiv": "EET-2EEST,M3.5.0/3,M10.5.0/4", "Europe/Istanbul": "<+03>-3", "Europe/Moscow": "MSK-3",
+    "Asia/Dubai": "<+04>-4", "Asia/Karachi": "PKT-5", "Asia/Kolkata": "IST-5:30", "Asia/Calcutta": "IST-5:30",
+    "Asia/Kathmandu": "<+0545>-5:45", "Asia/Dhaka": "<+06>-6", "Asia/Bangkok": "<+07>-7",
+    "Asia/Jakarta": "WIB-7", "Asia/Shanghai": "CST-8", "Asia/Hong_Kong": "HKT-8", "Asia/Singapore": "<+08>-8",
+    "Asia/Taipei": "CST-8", "Asia/Tokyo": "JST-9", "Asia/Seoul": "KST-9",
+    "Australia/Perth": "AWST-8", "Australia/Brisbane": "AEST-10",
+    "Australia/Sydney": "AEST-10AEDT,M10.1.0,M4.1.0/3", "Australia/Melbourne": "AEST-10AEDT,M10.1.0,M4.1.0/3",
+    "Pacific/Auckland": "NZST-12NZDT,M9.5.0,M4.1.0/3", "UTC": "UTC0", "Etc/UTC": "UTC0"
+  };
+  var HERE = (function () { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (e) { return ""; } })();
+  var tzLabel = "";   /* the zone's name, sent with its POSIX form when it came from the table */
   var port = null, writer = null, reading = false, reader = null, piped = null;
   var enc = new TextEncoder();
   var $ = function (id) { return document.getElementById(id); };
@@ -195,14 +244,14 @@ ul.facts { margin: 0; padding-left: 18px; color: var(--dim); display: grid; gap:
     $("dot").classList.toggle("on", on);
     $("connState").textContent = on ? "Connected" : "Not connected";
     $("connect").textContent = on ? "Disconnect" : "Connect board";
-    ["refresh", "clearWifi", "clearClaude", "clearGroq"].forEach(function (b) { $(b).disabled = !on; });
+    ["refresh", "clearWifi", "clearClaude", "clearGroq", "clearTz", "clearPlace"].forEach(function (b) { $(b).disabled = !on; });
     document.querySelectorAll(".row").forEach(updateRow);
   }
 
   function updateRow(row) {
     var id = row.dataset.id, input = row.querySelector("input"), hint = row.querySelector("[data-hint]");
     var v = clean(id, input.value), msg = check(id, v);
-    hint.textContent = msg || (v ? v.length + " characters, ready to save" : "");
+    hint.textContent = msg || (v ? (id === "tz" && tzLabel && TZ[tzLabel] === v ? tzLabel + ", " : "") + v.length + " characters, ready to save" : "");
     hint.classList.toggle("bad", !!msg);
     row.querySelector(".save").disabled = !(writer && v && msg === null);
   }
@@ -304,6 +353,7 @@ ul.facts { margin: 0; padding-left: 18px; color: var(--dim); display: grid; gap:
     row.querySelector(".save").addEventListener("click", async function () {
       var v = clean(id, input.value);
       if (check(id, v) !== null) return;
+      if (id === "tz" && tzLabel && TZ[tzLabel] === v) v = tzLabel + "|" + v;
       await send(SETTINGS[id].send(v));
       v = "";
       input.value = "";   /* never kept */
@@ -323,7 +373,20 @@ ul.facts { margin: 0; padding-left: 18px; color: var(--dim); display: grid; gap:
   $("clearWifi").addEventListener("click", clearCmd("wifi clear\r", "Wi-Fi name and password"));
   $("clearClaude").addEventListener("click", clearCmd("key claude clear\r", "Claude key"));
   $("clearGroq").addEventListener("click", clearCmd("key groq clear\r", "Groq key"));
+  $("clearTz").addEventListener("click", clearCmd("key tz clear\r", "time zone"));
+  $("clearPlace").addEventListener("click", clearCmd("key place clear\r", "place"));
   $("refresh").addEventListener("click", function () { send("key status\r"); });
+
+  /* "Use this computer's zone": fills in the POSIX form for the zone the browser is in. */
+  (function () {
+    var row = document.querySelector('.row[data-id="tz"]'), b = row.querySelector(".tz-here"), input = row.querySelector("input");
+    if (HERE && TZ[HERE]) {
+      b.hidden = false;
+      b.textContent = "Use this computer's zone: " + HERE;
+      b.addEventListener("click", function () { tzLabel = HERE; input.value = TZ[HERE]; updateRow(row); });
+    }
+    input.addEventListener("input", function () { if (TZ[tzLabel] !== input.value) tzLabel = ""; });
+  })();
 
   if (!("serial" in navigator)) {
     $("noSerial").hidden = false;

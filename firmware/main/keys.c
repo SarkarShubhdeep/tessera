@@ -1,5 +1,5 @@
-/* Tessera's own saved settings (reviews 05 and 06): Wi-Fi name and password, the Claude key and the Groq
- * key, in NVS namespace "tessera".
+/* Tessera's own saved settings (reviews 05, 06 and 08): Wi-Fi name and password, the Claude key, the Groq
+ * key, the time zone and the place, in NVS namespace "tessera".
  *
  * This is the ONLY file that writes NVS. It writes only the "tessera" namespace, one entry at a time, and
  * only when the owner types a command on the console. ESP-Claw's namespace "app" is opened here read-only,
@@ -31,6 +31,8 @@ static const spec_t SPEC[KEY_COUNT] = {
     [KEY_WIFI_PASS] = {"wifi_pass", "wifi_password", NULL, 8, 63, false},
     [KEY_CLAUDE] = {"claude_key", "llm_api_key", "sk-ant-", 20, KEYS_MAX, true},
     [KEY_GROQ] = {"groq_key", NULL, "gsk_", 20, 200, true},
+    [KEY_TZ] = {"tz", "time_timezone", NULL, 3, 80, false},
+    [KEY_PLACE] = {"place", NULL, NULL, 1, 80, false},
 };
 
 void keys_log_stats(const char *when)

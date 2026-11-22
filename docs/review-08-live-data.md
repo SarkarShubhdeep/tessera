@@ -1,6 +1,6 @@
 # Review 08: live data (a real clock, your place, and web search)
 
-**Status:** draft 2026-11-22, waiting for approval. Nothing built yet.
+**Status:** approved 2026-11-22, built and audited (below). Not flashed yet.
 **Build:** step 07 plus live data. Today Claude can't answer "what's the weather" or "what time is it": it
 has no web access and is never told the date, and the ring's clock is the simulator's fake 09:41. This
 step sets the board's clock, tells Claude the local time and (if you set one) your place, and lets Claude
@@ -106,3 +106,38 @@ search the web. Issue [#19](https://github.com/SarkarShubhdeep/tessera/issues/19
 
 **Stop rule unchanged:** any buzz, any sound from the speaker, or a mismatched pin means hold POWER and
 restore.
+
+## Build audit (2026-11-22)
+
+- Builds with no warnings (firmware and simulator). App 1.82 MB (`0x1d1b00`), in the 8 MB `main_app` slot
+  (the usual `vibe_mode` size warning).
+- **Request check on the Mac:** the board's actual `build_request` function, compiled on the Mac with
+  stand-ins for the clock and settings, produces:
+  - `tools`: `show_plate`, and `{"type": "web_search_20260209", "name": "web_search", "max_uses": 3}`.
+  - The first line of the instructions: `Now: Sunday 22 November 2026, 14:05 (America/New_York). The user is in
+    Example City, Region.` Without a place, it says the place isn't set and to ask for it.
+  - The search guidance in the prompt, and a single user message.
+- **Time zone table:** each of its 51 zones, checked against the Mac's time zone database, gives the same
+  local time weekly from today to November 2028, across every daylight-saving change. The check found one
+  that had gone stale: **Vancouver** is on UTC−7 all year since November 2026, so it's `MST7` now, not the
+  usual Pacific rule.
+- **Both setup pages:** the new fields work. On a phone set to New York time, "Use this phone's zone"
+  fills in `EST5EDT,M3.2.0,M11.1.0` and saves `America/New_York|EST5EDT,M3.2.0,M11.1.0`. Both pages pass
+  their earlier tests (no network access, no sideways scroll, Disconnect releases the port).
+- **Logs:** the time zone and place values are never logged: `clock: time zone set / not set (UTC)`,
+  and status lines with lengths only. As before, the question and the plate are logged, so if a question
+  or an answer mentions a place, that text is in the USB log.
+- **Storage:** writes still only in `keys.c`, namespace `tessera`. ESP-Claw's saved `time_timezone` is
+  the read-only fallback for the time zone.
+- **SNTP** re-checks the time every hour (`CONFIG_LWIP_SNTP_UPDATE_DELAY`).
+
+**Corrections to the plan:**
+- **The certificate check doesn't use the clock.** The board's TLS doesn't check certificate dates
+  (`MBEDTLS_HAVE_TIME_DATE` is off), so a wrong time from SNTP can't break or weaken HTTPS. It only gives
+  a wrong clock and a wrong "today". Checking expiry dates is possible now that there's a clock, but then a
+  failed or spoofed time sync would stop every request. Left off for now.
+- **The pages show lengths, not the values,** for the time zone and place too. The USB page only sees what
+  the board prints, and the board never prints them, so both pages behave the same way. You see what you
+  type before you save it, as with the keys.
+- The board still waits up to 10 s for the first time sync before its first question, so Claude gets the
+  date.

@@ -13,6 +13,10 @@ typedef enum {
     UI_STATE_COUNT,
 } ui_state_t;
 
+/* Where the ring's clock gets the time: fills in the local hour and minute, false if unknown ("--:--"). */
+typedef bool (*ui_clock_cb_t)(int *hour, int *minute);
+void ui_set_clock_source(ui_clock_cb_t cb);
+
 /* Build the surface on the active screen, showing the orb. */
 void ui_create(void);
 

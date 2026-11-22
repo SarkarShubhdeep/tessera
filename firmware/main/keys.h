@@ -14,6 +14,8 @@ typedef enum {
     KEY_WIFI_PASS,
     KEY_CLAUDE,
     KEY_GROQ,
+    KEY_TZ,      /* "<label>|<POSIX TZ>" or a bare POSIX TZ string (review 08) */
+    KEY_PLACE,   /* a city and region, as the owner says it (review 08) */
     KEY_COUNT,
 } key_id_t;
 
