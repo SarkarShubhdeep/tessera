@@ -118,6 +118,25 @@ What the page does with your values:
 - It never stores a value, and the board's replies never contain one: only "saved", "missing" or
   "cleared" and a length.
 
+### From a phone
+
+No computer needed. The board opens its own private hotspot for a few minutes:
+
+1. On the ring screen, **hold your finger on the screen for 2 seconds**. The Setup plate appears. Tap
+   **Start**.
+2. **Scan the first QR code** with your phone's camera and join `Tessera-XXXX`. Your phone may say the
+   network has no internet. Stay connected.
+3. **Scan the second QR code**. It opens the setup page from the board.
+4. Save what you want to change, then tap **Done**. Wi-Fi changes take effect then.
+
+What keeps it private:
+
+- The hotspot password is random, new every time, and shown only on the board's screen. Only one device
+  can join, and the hotspot switches itself off after 5 minutes.
+- The page answers only on the hotspot. From the home network, even someone with the link gets nothing:
+  the connection is closed before anything is read.
+- Anyone who can see the screen during those minutes can join, so set up where the screen is yours.
+
 ### The console, underneath
 
 The page sends plain text commands over the USB console. You can type them yourself in a serial terminal

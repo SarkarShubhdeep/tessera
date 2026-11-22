@@ -1,6 +1,6 @@
 # Review 07: setup from a phone, through a private hotspot
 
-**Status:** approved 2026-11-22 (long press on the ring confirmed), built and audited (below). Not flashed yet.
+**Status:** approved 2026-11-22 (long press on the ring confirmed), flashed (app slot only) and working (results at the end).
 **Build:** step 06 plus phone setup. The board can open its own short-lived Wi-Fi hotspot, shown as a QR
 code on its screen, so a phone can set Wi-Fi and keys without a computer. Issue
 [#17](https://github.com/SarkarShubhdeep/tessera/issues/17). The USB setup page
@@ -152,3 +152,27 @@ restore.
   [design/gallery/setup-intro.png](../design/gallery/setup-intro.png) and
   [setup-join.png](../design/gallery/setup-join.png) (made-up code).
 - **Pins:** no new pin calls.
+
+## On the board (2026-11-22)
+
+Flashed (app slot only), verified, settings intact. The test used only harmless actions: no real value
+was saved.
+
+**Session 1, the whole flow on the owner's phone:**
+
+| Time | Board log |
+|---|---|
+| 13:42:32 | `hotspot on (Tessera-FB94, 5 min)` |
+| 13:42:50 | `a phone joined the hotspot` (QR code 1) |
+| 13:43:14 | `page opened` (QR code 2) |
+| 13:43:39 | `phone: wifi name cleared` (harmless: Tessera had none of its own) |
+| 13:44:05 | `hotspot off (done)`, then back on the home Wi-Fi in 2 s |
+
+**From the home network** (the Mac, over the home Wi-Fi):
+- With setup off, port 80 on the board is closed.
+- During session 2, port 80 accepted a connection, but every request was closed with **0 bytes**
+  returned: `GET /`, `GET /s/<made-up token>`, and an unknown method (`PUT`). The board logged each as
+  `httpd_accept_conn: session creation failed`, the accept-time check closing it.
+- The owner's own attempt in Chrome on the Mac also got nothing.
+
+**Session 2, left alone:** `hotspot off (timed out)` exactly 5:00 after it started.
