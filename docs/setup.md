@@ -1,0 +1,140 @@
+# Setup
+
+Everything Tessera uses today, and how to change each part. The reasons behind each choice are in the
+[decision log](decisions.md); how each step was checked on the board is in the reviews
+([01](pin-review-01-screen.md), [02](pin-review-02-input.md), [03](pin-review-03-mic.md),
+[04](review-04-claude.md), [05](review-05-voice.md)).
+
+## At a glance
+
+| Part | Tessera uses | To change it |
+|---|---|---|
+| Board | ESP-Mosaico v1.2 (ESP32-S31, 480×480 AMOLED, touch, mic, AI button) | Pins and drivers live in `firmware/main/board.c` and `board.h`. A second board is on the roadmap |
+| Firmware | C, ESP-IDF 6.1, LVGL 9.5 | LVGL is pinned in `third_party/lvgl`; ESP-IDF version in your install |
+| Simulator | The same UI code in an SDL2 window on macOS | `sim/`, see below |
+| Answers | Claude API, `claude-opus-5-5`, effort `low` | `MODEL` and the `effort` line in `firmware/main/claude.c` |
+| Speech to text | Groq, `whisper-large-v3-turbo` | `URL` and `MODEL` in `firmware/main/groq.c` |
+| Keys and Wi-Fi | On the device, in its settings storage (NVS) | See [Keys and settings](#keys-and-settings) |
+
+## Board
+
+ESP-Mosaico v1.2 from Espressif. Pin map, buttons and recovery: [hardware notes](hardware.md).
+
+Everything that touches a pin is in `firmware/main/board.c` (and the microphone in `mic.c`). Before any
+change that drives a new pin, write a pin review like the ones above: list every output pin and its level
+at boot. The motor on GPIO8 once caused a reset loop ([hardware notes](hardware.md#lesson-the-motor-at-boot)).
+
+## Firmware toolchain
+
+- **ESP-IDF 6.1.** The ESP32-S31 is a preview target, so every `idf.py` command needs `--preview`.
+- **LVGL 9.5**, pinned as a submodule in `third_party/lvgl`. The UI in `ui/` uses only LVGL, so it builds
+  for the board and the Mac unchanged.
+- **C.** Why not Rust: [decision 001](decisions.md#001-c--lvgl-not-rust-2026-11-21).
+
+```bash
+. ~/esp/esp-idf/export.sh
+cd firmware
+idf.py --preview set-target esp32s31   # once
+idf.py --preview build
+```
+
+## Simulator
+
+The 480×480 screen in a window on a Mac. Needs Homebrew.
+
+```bash
+brew install sdl2 cmake ninja
+cd sim
+cmake -S . -B build -G Ninja && ninja -C build
+./build/tessera_sim
+```
+
+Details, snapshots and the plate files: [sim/README.md](../sim/README.md).
+
+## Models and services
+
+### Answers: Claude
+
+The device calls the [Claude Messages API](https://docs.claude.com) over HTTPS
+(`firmware/main/claude.c`): model `claude-opus-5-5`, effort `low` (short answers, quick replies),
+server-side fallback on, and one tool, `show_plate`, through which Claude picks and fills in a plate.
+
+- **Another Claude model:** change `MODEL`. Effort is the `output_config.effort` line in
+  `build_request`.
+- **The system prompt and the plate tool** are `SYSTEM_PROMPT` and `TOOL_JSON` in the same file; the
+  plate types themselves are in the [design system](design-system.md).
+
+Tessera is Claude only ([decision 003](decisions.md#003-claude-only-keep-mcp-2026-11-21)).
+
+### Speech to text: Groq
+
+Claude's API takes text, images and documents, not audio, so the recording goes to a speech-to-text
+service first ([decision 009](decisions.md#009-speech-to-text-through-groqs-hosted-whisper-2026-11-22)).
+Tessera uses Groq's hosted `whisper-large-v3-turbo`: about 2.5 s for a short question on the Mosaico, and
+a free tier of about 2,000 requests a day (checked November 2026).
+
+The request (`firmware/main/groq.c`) is the OpenAI-style `audio/transcriptions` form: a 16 kHz mono WAV
+file, the model name, `response_format=json`.
+
+- **Another service with the same form:** change `URL` and `MODEL`, and check that the server's
+  certificate chain ends at one of the roots in `firmware/main/certs/anthropic_roots.pem` (Google Trust
+  Services). If not, add its root to that file.
+- **Cloudflare Workers AI or a self-hosted whisper.cpp server:** both run Whisper, but take a different
+  request. That means changing the request in `groq.c`, not just the two lines.
+
+## Keys and settings
+
+All on the device, in its settings storage (the `nvs` partition). Nothing is in the repo, and the log
+never prints a key, a password or the network name.
+
+| Setting | Where it lives | How to set it |
+|---|---|---|
+| Wi-Fi name and password | ESP-Claw's namespace `app`, read only | Saved by the factory ESP-Claw firmware |
+| Claude API key | ESP-Claw's namespace `app`, read only | Saved by the factory ESP-Claw firmware |
+| Groq API key | Tessera's namespace `tessera` | `key groq <key>` on the device console |
+
+Tessera reads the Wi-Fi and Claude key that ESP-Claw saved, and never changes them. Commands for setting
+them from Tessera's own console don't exist yet.
+
+**Setting the Groq key.** Type it yourself, in your own terminal, never through an AI agent or a chat:
+
+```bash
+screen /dev/cu.usbmodem2101 115200
+```
+
+| Command | What it does |
+|---|---|
+| `key status` | Says whether a Groq key is saved, and its length |
+| `key groq <key>` | Saves the key (starts with `gsk_`). The console doesn't echo it |
+| `key groq clear` | Deletes it |
+
+Leave `screen` with Ctrl-A, K, Y.
+
+## Flashing and recovery
+
+**Back up first.** Before the first flash, save the whole flash (16 MB) and keep it **out of the repo**:
+it contains the saved Wi-Fi password and API keys.
+
+```bash
+esptool --chip esp32s31 -p /dev/cu.usbmodem2101 read-flash 0 0x1000000 mosaico-full.bin
+```
+
+**Flash only the app slot.** Tessera keeps the factory partition table and writes its app to the
+`main_app` slot at `0x210000`. The bootloader (at `0x2000`) is written once, from the same ESP-IDF as the
+app; the factory bootloader can't start an ESP-IDF 6.1 release app
+([hardware notes](hardware.md#lesson-the-factory-bootloader)).
+
+Running `esptool` once switches the board to download mode, and it comes back on the same port. Then:
+
+```bash
+esptool --chip esp32s31 -p /dev/cu.usbmodem2101 chip-id
+esptool --chip esp32s31 -p /dev/cu.usbmodem2101 --before no-reset --after watchdog-reset \
+  write-flash 0x210000 firmware/build/tessera.bin
+```
+
+The board restarts by itself afterwards. Don't use `idf.py flash`: it writes more than the app slot.
+
+**If it goes wrong** (no screen, a reset loop, the motor buzzing): hold POWER to switch off, then hold
+BOOT while tapping POWER to enter download mode, and write back the backup with
+`--after no-reset write-flash 0 mosaico-full.bin`. The [hardware notes](hardware.md#recovery) have the
+details.
