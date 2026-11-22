@@ -10,6 +10,7 @@
 #include <stdio.h>
 
 #include "board.h"
+#include "esp_app_desc.h"
 #include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "esp_timer.h"
@@ -202,16 +203,17 @@ static void claude_poll(lv_timer_t *t)
     }
 }
 
-static void claude_bring_up(void)
+static void claude_bring_up(void *arg)
 {
+    (void)arg;
     static tsr_settings_t st;   /* static: keeps the 400-byte struct off the stack */
     if (settings_load(&st) != ESP_OK) {
         ESP_LOGW(TAG, "Claude off: saved settings incomplete");
-        return;
+        vTaskDelete(NULL);
     }
     if (!settings_key_is_claude(&st)) {
         ESP_LOGW(TAG, "Claude off: the saved key isn't a Claude API key, so it isn't sent anywhere");
-        return;
+        vTaskDelete(NULL);
     }
     if (net_connect(st.wifi_ssid, st.wifi_password, 20000) != ESP_OK) {
         ESP_LOGW(TAG, "Wi-Fi not up yet; still retrying in the background");
@@ -221,6 +223,7 @@ static void claude_bring_up(void)
     memset(st.api_key, 0, sizeof(st.api_key));
     xTaskCreate(console_task, "console", 4096, NULL, 3, NULL);
     ESP_LOGI(TAG, "ready: type a question into this console and press Enter");
+    vTaskDelete(NULL);
 }
 
 void app_main(void)
@@ -251,8 +254,9 @@ void app_main(void)
     lv_timer_create(ring_level, 33, NULL);
     lv_timer_create(ai_button_poll, 20, NULL);
     lv_timer_create(claude_poll, 50, NULL);
-    lv_timer_handler();   /* draw the ring before the network comes up */
-    claude_bring_up();
+    ui_show_splash(esp_app_get_description()->version);
+    /* Wi-Fi and Claude start in their own task, so the screen keeps animating while they connect. */
+    xTaskCreate(claude_bring_up, "bringup", 6144, NULL, 3, NULL);
 
     while (1) {
         uint32_t wait = lv_timer_handler();

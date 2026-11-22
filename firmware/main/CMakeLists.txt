@@ -8,4 +8,5 @@ idf_component_register(
         "../../sim/plates/02-number.json"
         "../../sim/plates/04-list.json"
         "../../sim/plates/05-choice.json"
-        "../../sim/plates/06-gauge.json")
+        "../../sim/plates/06-gauge.json"
+        "certs/anthropic_roots.pem")

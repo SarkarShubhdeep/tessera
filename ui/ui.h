@@ -16,6 +16,9 @@ typedef enum {
 /* Build the surface on the active screen, showing the orb. */
 void ui_create(void);
 
+/* Start screen: the wordmark, the version and a work-in-progress mark, then a fade to the ring. */
+void ui_show_splash(const char *version);
+
 /* Orb state (the engine's `state` event). Shows the orb if a plate is up. */
 void ui_set_state(ui_state_t state);
 

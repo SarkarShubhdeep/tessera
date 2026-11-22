@@ -304,6 +304,58 @@ static void on_key(lv_event_t *e)
     }
 }
 
+/* ---------- start screen ---------- */
+
+static void splash_fade(lv_timer_t *t)
+{
+    lv_obj_t *splash = lv_timer_get_user_data(t);
+    once(splash, anim_opa, LV_OPA_COVER, LV_OPA_TRANSP, 300, lv_anim_path_ease_in, delete_when_done);
+}
+
+static lv_obj_t *splash_label(lv_obj_t *parent, const char *text, const lv_font_t *font, lv_color_t color,
+                              int32_t track)
+{
+    lv_obj_t *l = lv_label_create(parent);
+    lv_label_set_text(l, text);
+    lv_obj_set_style_text_font(l, font, 0);
+    lv_obj_set_style_text_color(l, color, 0);
+    lv_obj_set_style_text_letter_space(l, track, 0);
+    return l;
+}
+
+void ui_show_splash(const char *version)
+{
+    /* On the top layer, over the ring, so the ring is already there when the splash fades. */
+    lv_obj_t *splash = lv_obj_create(lv_layer_top());
+    lv_obj_remove_style_all(splash);
+    lv_obj_set_size(splash, lv_pct(100), lv_pct(100));
+    lv_obj_set_style_bg_color(splash, TS_BLACK, 0);
+    lv_obj_set_style_bg_opa(splash, LV_OPA_COVER, 0);
+
+    lv_obj_t *word = splash_label(splash, "TESSERA", TS_FONT_DISPLAY, TS_INK, TS_PX(6));
+    lv_obj_align(word, LV_ALIGN_CENTER, 0, TS_PX(-16));
+    lv_obj_t *ver = splash_label(splash, version, TS_FONT_HEAD, TS_DIM, TS_TRACK_LABEL);
+    lv_obj_align_to(ver, word, LV_ALIGN_OUT_BOTTOM_MID, 0, TS_PX(TS_GAP_M));
+
+    /* Work in progress: an accent square and an uppercase label, like a live plate header. */
+    lv_obj_t *wip = lv_obj_create(splash);
+    lv_obj_remove_style_all(wip);
+    lv_obj_set_size(wip, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(wip, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(wip, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_column(wip, TS_PX(10), 0);
+    lv_obj_t *sq = lv_obj_create(wip);
+    lv_obj_remove_style_all(sq);
+    lv_obj_set_size(sq, TS_PX(10), TS_PX(10));
+    lv_obj_set_style_bg_color(sq, TS_ACCENT, 0);
+    lv_obj_set_style_bg_opa(sq, LV_OPA_COVER, 0);
+    splash_label(wip, "WORK IN PROGRESS", TS_FONT_FOOT, TS_ACCENT, TS_TRACK_LABEL);
+    lv_obj_align(wip, LV_ALIGN_BOTTOM_MID, 0, TS_PX(-48));
+
+    lv_timer_t *t = lv_timer_create(splash_fade, 1600, splash);
+    lv_timer_set_repeat_count(t, 1);
+}
+
 /* ---------- clock (the board will use SNTP time; the simulator fakes it) ---------- */
 
 static void clock_tick(lv_timer_t *t)

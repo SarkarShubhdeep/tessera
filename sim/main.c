@@ -154,6 +154,12 @@ int main(int argc, char **argv)
     const char *snap_dir = getenv("SNAP_DIR");
     if (snap_dir) {
         lv_sysmon_hide_performance(disp);
+        ui_show_splash("0.1 · simulator");
+        pump(400);
+        if (snap(disp, snap_dir, "splash")) {
+            return 1;
+        }
+        pump(2000);   /* let it fade */
         static const char *const STATES[] = {"orb-idle", "orb-listening", "orb-thinking", "orb-speaking"};
         for (int st = 0; st < UI_STATE_COUNT; st++) {
             ui_set_state((ui_state_t)st);
@@ -208,6 +214,7 @@ int main(int argc, char **argv)
         free(json);
     }
     ui_set_state(UI_STATE_IDLE);
+    ui_show_splash("0.1 · simulator");
 
     while (1) { /* LV_SDL_DIRECT_EXIT ends the process when the window closes */
         uint32_t wait_ms = lv_timer_handler();

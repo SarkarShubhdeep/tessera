@@ -8,7 +8,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "esp_crt_bundle.h"
 #include "esp_heap_caps.h"
 #include "esp_http_client.h"
 #include "esp_log.h"
@@ -18,6 +17,10 @@
 #include "freertos/task.h"
 
 static const char *TAG = "claude";
+
+/* Trust anchors: Google Trust Services roots (certs/anthropic_roots.pem). ESP-IDF's bundle check fails
+ * here: the server sends GTS Root R4 cross-signed by GlobalSign Root CA, which the bundle has dropped. */
+extern const char ROOTS_PEM[] asm("_binary_anthropic_roots_pem_start");
 
 #define URL        "https://api.anthropic.com/v1/messages"
 #define MODEL      "claude-opus-5-5"
@@ -168,7 +171,7 @@ static void worker(void *arg)
             .url = URL,
             .method = HTTP_METHOD_POST,
             .timeout_ms = 90000,
-            .crt_bundle_attach = esp_crt_bundle_attach,
+            .cert_pem = ROOTS_PEM,
             .event_handler = on_http,
             .user_data = &body,
             .buffer_size = 4096,
