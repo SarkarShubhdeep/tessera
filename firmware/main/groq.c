@@ -79,7 +79,7 @@ esp_err_t groq_transcribe(const char *key, const int16_t *pcm, size_t samples, c
     wav_header(wav, data_bytes);
     int total = (int)(sizeof(HEAD) - 1 + sizeof(wav) + data_bytes + sizeof(TAIL) - 1);
 
-    char auth[16 + KEYS_GROQ_MAX];
+    char auth[16 + KEYS_MAX];
     snprintf(auth, sizeof(auth), "Bearer %s", key);
 
     esp_http_client_config_t cfg = {

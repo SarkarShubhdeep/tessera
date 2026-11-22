@@ -1,7 +1,7 @@
 /* Tessera on the ESP-Mosaico, step 05b: screen, touch, AI button, microphone, Claude over Wi-Fi, and voice.
  * Hold the AI button and speak: the recording goes to Groq for the words, the words go to Claude, and the
- * answer arrives as a plate (review 05). A line typed into the USB console is still a question (review 04);
- * a line starting with "key" manages the Groq key and is never logged or sent.
+ * answer arrives as a plate (review 05). The USB console takes settings commands only (review 06):
+ * nothing typed there is ever sent to Claude.
  *
  * Runs the same surface as the Mac simulator (ui/). Tap the ring to cycle its states, swipe through
  * five example plates, hold the AI button to "talk" (a stand-in until the engine exists). LVGL's
@@ -178,56 +178,138 @@ static void ai_button_poll(lv_timer_t *t)
     was_down = down;
 }
 
-/* ---------- the Groq key, typed into the console by you ---------- */
+/* ---------- settings, typed into the console by you (reviews 05 and 06) ---------- */
+/* Lines handled here can hold secrets: never logged, never echoed, never sent to Claude or Groq.
+ * Replies use the "setup" tag, so tools/setup.html can show only those. */
+static const char *SETUP = "setup";
 
-/* Handles a line that starts with "key". The line holds a secret: it is never logged or echoed. */
-static void key_command(char *line)
+static const char *const KEY_NAME[KEY_COUNT] = {"wifi name", "wifi password", "claude key", "groq key"};
+static const char *const SRC_NAME[] = {"missing", "saved in tessera", "from ESP-Claw"};
+
+static void print_status(void)
 {
-    char *arg = line + 3;
-    while (*arg == ' ') {
-        arg++;
-    }
-    if (strcmp(arg, "status") == 0) {
-        size_t n = keys_groq_len();
-        if (n) {
-            ESP_LOGI(TAG, "groq key: saved (%u chars)", (unsigned)n);
+    for (int i = 0; i < KEY_COUNT; i++) {
+        key_src_t src;
+        size_t n = keys_len((key_id_t)i, &src);
+        if (src == KEY_SRC_NONE) {
+            ESP_LOGI(SETUP, "%s: missing", KEY_NAME[i]);
         } else {
-            ESP_LOGI(TAG, "groq key: missing");
+            ESP_LOGI(SETUP, "%s: %s (%u chars)", KEY_NAME[i], SRC_NAME[src], (unsigned)n);
         }
-    } else if (strncmp(arg, "groq ", 5) == 0) {
-        char *k = arg + 5;
-        while (*k == ' ') {
-            k++;
-        }
-        size_t len = strlen(k);
-        while (len && k[len - 1] == ' ') {
-            k[--len] = '\0';
-        }
-        if (strcmp(k, "clear") == 0) {
-            esp_err_t err = keys_clear_groq();
-            ESP_LOGI(TAG, "groq key %s", err == ESP_OK ? "cleared" : "could not be cleared");
-        } else if (!keys_groq_valid(k)) {
-            ESP_LOGW(TAG, "that doesn't look like a Groq key (gsk_..., %u chars); not saved", (unsigned)len);
-        } else {
-            esp_err_t err = keys_set_groq(k);
-            if (err == ESP_OK) {
-                ESP_LOGI(TAG, "groq key saved (%u chars)", (unsigned)len);
-            } else {
-                ESP_LOGE(TAG, "groq key not saved (%s)", esp_err_to_name(err));
-            }
-        }
-    } else {
-        ESP_LOGW(TAG, "key commands: key status | key groq <key> | key groq clear");
     }
 }
 
-/* ---------- Claude: console questions in, plates out ---------- */
+/* Save or clear one setting and say so, by name and length only. */
+static bool save(key_id_t id, const char *value)
+{
+    if (!keys_valid(id, value)) {
+        ESP_LOGW(SETUP, "that doesn't look like a valid %s (%u chars); not saved", KEY_NAME[id],
+                 (unsigned)strlen(value));
+        return false;
+    }
+    esp_err_t err = keys_set(id, value);
+    if (err != ESP_OK) {
+        ESP_LOGE(SETUP, "%s not saved (%s)", KEY_NAME[id], esp_err_to_name(err));
+        return false;
+    }
+    ESP_LOGI(SETUP, "%s saved (%u chars)", KEY_NAME[id], (unsigned)strlen(value));
+    return true;
+}
 
-/* Reads lines from the USB console. Any line is a question. */
+static void clear(key_id_t id)
+{
+    esp_err_t err = keys_clear(id);
+    ESP_LOGI(SETUP, "%s %s", KEY_NAME[id], err == ESP_OK ? "cleared" : "could not be cleared");
+}
+
+static void trim_end(char *s)
+{
+    size_t n = strlen(s);
+    while (n && s[n - 1] == ' ') {
+        s[--n] = '\0';
+    }
+}
+
+static const char *after_spaces(const char *s)
+{
+    while (*s == ' ') {
+        s++;
+    }
+    return s;
+}
+
+/* True after "wifi password": the next line is the password, however long it takes. No time-out: a
+ * password typed after one would otherwise be read as a question, logged and sent to Claude. */
+static bool s_pw_next;
+
+static void key_command(char *line)
+{
+    trim_end(line);
+    const char *arg = after_spaces(line + 3);
+    if (strcmp(arg, "status") == 0) {
+        print_status();
+    } else if (strncmp(arg, "groq ", 5) == 0 || strncmp(arg, "claude ", 7) == 0) {
+        key_id_t id = arg[0] == 'g' ? KEY_GROQ : KEY_CLAUDE;
+        const char *v = after_spaces(strchr(arg, ' '));
+        if (strcmp(v, "clear") == 0) {
+            clear(id);
+        } else {
+            save(id, v);
+        }
+    } else {
+        ESP_LOGW(SETUP, "key commands: key status | key claude <key> | key claude clear | key groq <key> | "
+                      "key groq clear");
+    }
+}
+
+static void wifi_command(char *line)
+{
+    trim_end(line);
+    const char *arg = after_spaces(line + 4);
+    if (strncmp(arg, "name ", 5) == 0) {
+        if (save(KEY_WIFI_NAME, after_spaces(arg + 5))) {
+            net_apply();
+        }
+    } else if (strcmp(arg, "password") == 0) {
+        s_pw_next = true;
+        ESP_LOGI(SETUP, "type the wifi password on the next line (an empty line cancels)");
+    } else if (strcmp(arg, "clear") == 0) {
+        clear(KEY_WIFI_NAME);
+        clear(KEY_WIFI_PASS);
+        net_apply();   /* back to ESP-Claw's, if it saved any */
+    } else {
+        ESP_LOGW(SETUP, "wifi commands: wifi name <name> | wifi password | wifi clear");
+    }
+}
+
+/* The line after "wifi password". Only ever saved, never logged or sent anywhere else. */
+static void password_line(const char *line)
+{
+    s_pw_next = false;
+    if (!line[0]) {
+        ESP_LOGI(SETUP, "wifi password: cancelled");
+        return;
+    }
+    if (save(KEY_WIFI_PASS, line)) {
+        net_apply();
+    }
+}
+
+static bool starts_with_word(const char *line, const char *word)
+{
+    size_t n = strlen(word);
+    return strncmp(line, word, n) == 0 && (line[n] == ' ' || line[n] == '\0');
+}
+
+/* ---------- the console: settings commands only ---------- */
+
+/* Reads lines from the USB console. Only settings commands are handled; nothing typed here reaches the
+ * network except a Wi-Fi name and password (to the Wi-Fi driver) and keys (saved, then used in their
+ * services' headers). */
 static void console_task(void *arg)
 {
     (void)arg;
-    char line[256];
+    char line[384];
     int n = 0;
     while (1) {
         int c = getchar();
@@ -238,17 +320,19 @@ static void console_task(void *arg)
         }
         if (c == '\r' || c == '\n') {
             line[n] = '\0';
-            if (strncmp(line, "key", 3) == 0 && (line[3] == ' ' || line[3] == '\0')) {
-                key_command(line);
-            } else if (strstr(line, "gsk_")) {
-                /* A Groq key typed without "key groq" in front: never send it to Claude. */
-                ESP_LOGW(TAG, "that line looks like a Groq key; not sent. Use: key groq <key>");
-            } else if (n > 0) {
-                if (!net_is_up()) {
-                    ESP_LOGW(TAG, "not connected; question dropped");
-                } else if (!claude_ask(line)) {
-                    ESP_LOGW(TAG, "busy; question dropped");
+            if (s_pw_next) {
+                if (c == '\n' && n == 0) {
+                    continue;   /* the \n of a \r\n pair: not an empty (cancelling) line */
                 }
+                password_line(line);
+            } else if (starts_with_word(line, "key")) {
+                key_command(line);
+            } else if (starts_with_word(line, "wifi")) {
+                wifi_command(line);
+            } else if (n > 0) {
+                /* Not a command. The console never sends anything to Claude (issue #16): questions come
+                 * from the AI button only. The line itself is not logged: it might hold a secret. */
+                ESP_LOGW(SETUP, "not a command (%d chars); nothing sent", n);
             }
             memset(line, 0, sizeof(line));
             n = 0;
@@ -287,32 +371,19 @@ static void claude_poll(lv_timer_t *t)
 static void claude_bring_up(void *arg)
 {
     (void)arg;
-    static tsr_settings_t st;   /* static: keeps the 400-byte struct off the stack */
-    esp_err_t loaded = settings_load(&st);
-    /* The console starts even without Claude, so the Groq key can be entered. */
-    xTaskCreate(console_task, "console", 4096, NULL, 3, NULL);
+    static tsr_settings_t st;   /* static: keeps the struct off the stack */
+    settings_load(&st);         /* opens NVS and logs what ESP-Claw saved (presence only) */
+    memset(&st, 0, sizeof(st)); /* the values themselves are read through keys_get when needed */
+    /* The console starts first, so settings can be typed in even with nothing saved. */
+    xTaskCreate(console_task, "console", 6144, NULL, 3, NULL);
     keys_log_stats("at boot");
-    size_t gl = keys_groq_len();
-    if (gl) {
-        ESP_LOGI(TAG, "groq key: saved (%u chars)", (unsigned)gl);
-    } else {
-        ESP_LOGI(TAG, "groq key: missing (type: key groq <key>)");
-    }
-    if (loaded != ESP_OK) {
-        ESP_LOGW(TAG, "Claude off: saved settings incomplete");
-        vTaskDelete(NULL);
-    }
-    if (!settings_key_is_claude(&st)) {
-        ESP_LOGW(TAG, "Claude off: the saved key isn't a Claude API key, so it isn't sent anywhere");
-        vTaskDelete(NULL);
-    }
-    if (net_connect(st.wifi_ssid, st.wifi_password, 20000) != ESP_OK) {
+    print_status();
+    ESP_ERROR_CHECK(net_init());
+    if (net_apply() == ESP_OK && !net_wait(20000)) {
         ESP_LOGW(TAG, "Wi-Fi not up yet; still retrying in the background");
     }
-    memset(st.wifi_password, 0, sizeof(st.wifi_password));
-    ESP_ERROR_CHECK(claude_start(st.api_key));
-    memset(st.api_key, 0, sizeof(st.api_key));
-    ESP_LOGI(TAG, "ready: hold the AI button and speak, or type a question and press Enter");
+    ESP_ERROR_CHECK(claude_start());
+    ESP_LOGI(TAG, "ready: hold the AI button and speak");
     vTaskDelete(NULL);
 }
 

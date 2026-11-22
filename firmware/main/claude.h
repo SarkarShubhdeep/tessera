@@ -7,8 +7,9 @@
 #include "cJSON.h"
 #include "esp_err.h"
 
-/* Start the worker. The key stays in RAM and is sent only to api.anthropic.com. */
-esp_err_t claude_start(const char *api_key);
+/* Start the worker. The Claude key is read from storage for each question (Tessera's, else ESP-Claw's)
+ * and sent only to api.anthropic.com. */
+esp_err_t claude_start(void);
 
 typedef enum {
     CLAUDE_EVT_HEARD,   /* text: what Groq heard; Claude is being asked */
@@ -21,9 +22,6 @@ typedef struct {
     cJSON *plate;       /* caller frees with cJSON_Delete */
     char *text;         /* caller frees with free */
 } claude_evt_t;
-
-/* Queue a typed question. Returns false if one is already in flight. */
-bool claude_ask(const char *question);
 
 /* Queue a recording (16 kHz mono): Groq turns it into words, then Claude answers. The buffer must stay
  * untouched until claude_busy() is false. Returns false if a request is already in flight. */
