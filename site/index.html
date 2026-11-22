@@ -163,35 +163,9 @@ section { border-bottom: 1px solid var(--border); }
 .orb-wrap { position: absolute; inset: 0; display: grid; place-items: center; }
 .clock { position: absolute; top: calc(var(--px) * 40); left: 0; right: 0; text-align: center; font: 500 calc(var(--px) * 24) / 1 var(--font-mono); color: var(--screen-dim); letter-spacing: 0.04em; }
 .status { position: absolute; bottom: calc(var(--px) * 70); left: 0; right: 0; text-align: center; font: 500 calc(var(--px) * 26) / 1 var(--font-sans); color: var(--screen-ink); }
-/* The pixel orb: 14-unit squares on a 16-unit pitch, kept where they fall inside a 176-unit circle.
-   Each state has its own still shape (idle: disc with dim flecks; listening: rings; thinking:
-   shattered; speaking: equalizer), so it reads even without motion. Same design as the canvas. */
-.disc { position: relative; width: calc(var(--px) * 176); height: calc(var(--px) * 176); --sh: calc(var(--px) * 90); }
-.pix, .eq { position: absolute; inset: 0; }
-.disc i { position: absolute; left: calc(var(--px) * var(--x)); top: calc(var(--px) * var(--y)); width: calc(var(--px) * 14); height: calc(var(--px) * 14); background: var(--screen-accent); }
-.eq { display: none; }
-.eq b { position: absolute; top: 0; bottom: 0; left: calc(var(--px) * var(--x)); width: calc(var(--px) * 14); transform-origin: 50% 50%; }
-.eq b i { left: 0; }
-[data-state="idle"] .pix i { opacity: var(--oi); }
-[data-state="listening"] .pix i { opacity: var(--ol); }
-[data-state="speaking"] .pix { display: none; }
-[data-state="speaking"] .eq { display: block; }
-[data-state="thinking"] .pix i { transform: translate(calc(var(--ux) * var(--sh) * (0.45 + var(--k) * 0.55)), calc(var(--uy) * var(--sh) * (0.45 + var(--k) * 0.55))) rotate(90deg) scale(0.8); }
-[data-state="idle"] .pix { animation: breathe 2.4s ease-in-out infinite alternate; }
-[data-state="idle"] .pix i { animation: twinkle 3.6s linear infinite; animation-delay: calc(var(--k) * -3.6s); }
-[data-state="listening"] .pix i { animation: ripple 0.9s cubic-bezier(.16,1,.3,1) infinite; animation-delay: calc(var(--r) * 60ms); }
-[data-state="thinking"] .pix { animation: spin 4.8s linear infinite; }
-[data-state="thinking"] .pix i { animation: reform 3.2s cubic-bezier(.65,0,.35,1) infinite; animation-delay: calc(var(--k) * -0.25s); }
-[data-state="speaking"] .eq b { animation: beat 0.32s ease-in-out infinite alternate; animation-delay: var(--d); }
-@keyframes breathe { from { transform: scale(0.92); } to { transform: scale(1); } }
-@keyframes twinkle { 0%, 88%, 100% { opacity: var(--oi); } 93% { opacity: 0.12; } }
-@keyframes ripple { 0%, 60%, 100% { transform: translate(0, 0) scale(1); } 25% { transform: translate(calc(var(--ux) * var(--px) * 12), calc(var(--uy) * var(--px) * 12)) scale(0.7); } }
-@keyframes spin { to { transform: rotate(360deg); } }
-@keyframes reform {
-  0%, 30%, 70%, 100% { transform: translate(calc(var(--ux) * var(--sh) * (0.45 + var(--k) * 0.55)), calc(var(--uy) * var(--sh) * (0.45 + var(--k) * 0.55))) rotate(90deg) scale(0.8); }
-  48%, 52% { transform: translate(0, 0) rotate(0) scale(1); }
-}
-@keyframes beat { from { transform: scaleY(0.35); } to { transform: scaleY(1); } }
+/* Presence: a ring of 24 square segments, drawn on a canvas by script (see "presence" below).
+   One object in every state; only segment length and brightness change, so states morph. */
+.presence { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 
 /* ---------- plates (all sizes in 480-canvas units) ---------- */
 .plate { position: absolute; inset: 0; padding: calc(var(--px) * 36); display: flex; flex-direction: column; color: var(--screen-ink); }
@@ -420,7 +394,7 @@ footer p { color: var(--muted-foreground); font-size: 0.875rem; max-width: 60ch;
           <span class="badge">Open source</span>
         </div>
         <h1>The agent designs the screen. <em>The device draws it.</em></h1>
-        <p class="sub">Tessera is an interface for small AI devices. Ask with one button, and Claude answers with a native screen instead of a paragraph.</p>
+        <p class="sub">An open-source interface for small AI devices. Claude answers with screens, not paragraphs.</p>
         <div class="hero-cta">
           <a class="btn btn-primary" href="#interaction">Try the device</a>
           <a class="btn" href="#idea">How it works</a>
@@ -443,32 +417,31 @@ footer p { color: var(--muted-foreground); font-size: 0.875rem; max-width: 60ch;
       <div class="sec-head">
         <span class="label">The idea</span>
         <div>
-          <h2>Small screens deserve better than a chat window.</h2>
-          <p class="lede">Most AI gadgets shrink a chatbot onto a tiny display. Tessera gives the agent a design system instead, so every answer arrives as a screen built for a 2-inch square of glass.</p>
+          <h2>Answers become screens.</h2>
         </div>
       </div>
       <div class="contrast">
         <div>
           <span class="was">walls of text</span>
           <h3>Plates, not paragraphs</h3>
-          <p>Ask how long the tea has left and you get a countdown, not a sentence about a countdown. Spoken replies stay short; the plate carries the detail.</p>
+          <p>Ask about the tea and you get a countdown. The voice stays short; the plate holds the detail.</p>
         </div>
         <div>
           <span class="was">app grids and drawers</span>
           <h3>One thing at a time</h3>
-          <p>No status bar, no app grid, no notification drawer. The screen shows the orb or a single plate. Pin a plate and it becomes an app the agent keeps fresh.</p>
+          <p>The orb or a single plate. Pin a plate and it stays up to date.</p>
         </div>
         <div>
           <span class="was">UI scripts at 30 fps</span>
           <h3>Native, flat, fast</h3>
-          <p>Plates are drawn by the firmware in C with LVGL, from a fixed design system. The agent never runs code to draw, so every screen is consistent, safe and built for 60 fps.</p>
+          <p>Drawn by the firmware from a fixed design system. The agent sends data, never code.</p>
         </div>
       </div>
       <div class="flow">
         <div><span class="n">STEP 1</span><h3>You ask</h3><p>Hold the orange AI button, speak, let go.</p></div>
-        <div><span class="n">STEP 2</span><h3>Claude picks a plate</h3><p>It answers through one tool, <code class="mono">show_plate</code>, whose schema is the design system.</p></div>
-        <div><span class="n">STEP 3</span><h3>The engine checks it</h3><p>Fields are validated. Anything unknown falls back to a plain answer plate.</p></div>
-        <div><span class="n">STEP 4</span><h3>The device draws it</h3><p>Rendered natively, with only the changing region redrawn each frame.</p></div>
+        <div><span class="n">STEP 2</span><h3>Claude picks a plate</h3><p>Through one tool, <code class="mono">show_plate</code>.</p></div>
+        <div><span class="n">STEP 3</span><h3>The engine checks it</h3><p>Unknown types fall back to a plain answer.</p></div>
+        <div><span class="n">STEP 4</span><h3>The device draws it</h3><p>Natively, redrawing only what changes.</p></div>
       </div>
     </div>
   </section>
@@ -479,8 +452,7 @@ footer p { color: var(--muted-foreground); font-size: 0.875rem; max-width: 60ch;
       <div class="sec-head">
         <span class="label">Plates</span>
         <div>
-          <h2>A vocabulary of screens, shared by the designer and the agent.</h2>
-          <p class="lede">Each plate type is a layout, a set of fields and a motion rule. What the agent sends on the left is exactly what the device draws on the right.</p>
+          <h2>Spec in, screen out.</h2>
         </div>
       </div>
       <div class="explorer">
@@ -503,8 +475,7 @@ footer p { color: var(--muted-foreground); font-size: 0.875rem; max-width: 60ch;
       <div class="sec-head">
         <span class="label">Interaction</span>
         <div>
-          <h2>One button, a few gestures, nothing to learn twice.</h2>
-          <p class="lede">Every input has one job. Voice is the fast path, never the only one: everything works by touch too.</p>
+          <h2>One button. A few gestures.</h2>
         </div>
       </div>
       <div class="grammar-grid">
@@ -543,8 +514,7 @@ footer p { color: var(--muted-foreground); font-size: 0.875rem; max-width: 60ch;
       <div class="sec-head">
         <span class="label">Presence</span>
         <div>
-          <h2>An orb made of pixels.</h2>
-          <p class="lede">97 square pixels arranged in a circle: sharp parts, round whole. Each state has its own shape, so you can read it from across the room, and its own motion. When the agent thinks, the orb shatters and revolves.</p>
+          <h2>Presence.</h2>
         </div>
       </div>
       <div class="states" id="states"></div>
@@ -557,23 +527,22 @@ footer p { color: var(--muted-foreground); font-size: 0.875rem; max-width: 60ch;
       <div class="sec-head">
         <span class="label">How it's built</span>
         <div>
-          <h2>A new surface on a proven engine.</h2>
-          <p class="lede">Tessera writes everything you see, touch and hear. The agent loop comes from Espressif's ESP-Claw, slimmed down to Claude and MCP.</p>
+          <h2>Surface, engine, board.</h2>
         </div>
       </div>
       <div class="arch">
         <div class="stack">
           <div class="layer-row ours">
             <header><h3>Surface</h3><span class="badge badge-live">Tessera</span></header>
-            <p>Orb, plates, gestures, haptics and sound. C and LVGL 9.5. The same code runs in a Mac simulator and on the board.</p>
+            <p>Presence, plates, gestures, haptics. C and LVGL 9.5; the same code runs in the simulator.</p>
           </div>
           <div class="layer-row">
             <header><h3>Engine</h3><span class="badge">ESP-Claw core</span></header>
-            <p>Agent loop, Claude API, tools, MCP client and server, memory. Chat-app integrations removed.</p>
+            <p>Agent loop, Claude API, tools, MCP, memory.</p>
           </div>
           <div class="layer-row">
             <header><h3>Board</h3><span class="badge">Board Manager</span></header>
-            <p>Display, touch, audio, button, motor and motion sensors, described per board in YAML.</p>
+            <p>Pins and drivers, described per board.</p>
           </div>
         </div>
         <div class="contract">
@@ -617,8 +586,7 @@ footer p { color: var(--muted-foreground); font-size: 0.875rem; max-width: 60ch;
       <div class="sec-head">
         <span class="label">Boards</span>
         <div>
-          <h2>One interface for every screen-and-button ESP32.</h2>
-          <p class="lede">Boards declare a size class, a shape and what they have. The design tokens scale; features without hardware step aside gracefully.</p>
+          <h2>Mosaico first. Then S3 boards.</h2>
         </div>
       </div>
       <div class="boards">
@@ -626,21 +594,21 @@ footer p { color: var(--muted-foreground); font-size: 0.875rem; max-width: 60ch;
           <div class="size-box"><i style="width:140px;height:140px"></i></div>
           <span class="label">L · 466–480 px</span>
           <h3>ESP-Mosaico</h3>
-          <p>The reference board. ESP32-S31, square AMOLED, mic, speaker, motor, 9-axis motion, camera module.</p>
+          <p>ESP32-S31, square AMOLED, mic, speaker, motor.</p>
           <div class="chips"><span class="badge badge-live">First</span><span class="badge">mic</span><span class="badge">motor</span><span class="badge">IMU</span></div>
         </div>
         <div>
           <div class="size-box"><i style="width:120px;height:120px"></i></div>
           <span class="label">M · 360–412 px</span>
           <h3>ESP32-S3 displays</h3>
-          <p>Square and round touch AMOLEDs from Waveshare, Seeed and others. Same plates, tighter type scale.</p>
+          <p>Square and round touch AMOLEDs.</p>
           <div class="chips"><span class="badge">Next</span><span class="badge">touch</span><span class="badge">round or square</span></div>
         </div>
         <div>
           <div class="size-box"><i style="width:70px;height:70px"></i></div>
           <span class="label">S · 240 px</span>
           <h3>Small screens</h3>
-          <p>240 × 240 boards with one or two buttons. Plates shrink to their essentials; no mic means tap-only.</p>
+          <p>240 × 240 boards with a button or two.</p>
           <div class="chips"><span class="badge">Later</span><span class="badge">buttons</span></div>
         </div>
       </div>
@@ -653,15 +621,15 @@ footer p { color: var(--muted-foreground); font-size: 0.875rem; max-width: 60ch;
     <div class="wrap sec">
       <div class="sec-head">
         <span class="label">Principles</span>
-        <div><h2>Decisions, written down.</h2><p class="lede">Every choice is logged with its reasons in the repo.</p></div>
+        <div><h2>Rules.</h2></div>
       </div>
       <div class="principles">
-        <div><h3>Flat and sharp</h3><p>Square corners, 1 px rules, no shadows. Plates draw on print and Swiss posters, not rounded cards.</p></div>
-        <div><h3>True black</h3><p>On AMOLED, black pixels are off. Deep contrast, less power, nothing to redraw.</p></div>
-        <div><h3>One accent</h3><p>Orange, from the AI button, marks whatever is live or actionable.</p></div>
-        <div><h3>Data, not code</h3><p>The agent fills in plates. It never runs code to draw the screen.</p></div>
-        <div><h3>Haptics as punctuation</h3><p>Short detents and a soft heartbeat while thinking. Never a long buzz.</p></div>
-        <div><h3>Simulator first</h3><p>UI is built on a Mac. Hardware changes reach the board only after a pin-by-pin review.</p></div>
+        <div><h3>Flat and sharp</h3><p>Square corners, rules, no shadows.</p></div>
+        <div><h3>True black</h3><p>Black pixels are off on AMOLED.</p></div>
+        <div><h3>One accent</h3><p>Orange marks what is live.</p></div>
+        <div><h3>Data, not code</h3><p>The agent fills in plates.</p></div>
+        <div><h3>Haptics as punctuation</h3><p>Short detents. Never a long buzz.</p></div>
+        <div><h3>Simulator first</h3><p>Built on a Mac, then the board.</p></div>
       </div>
     </div>
   </section>
@@ -671,7 +639,7 @@ footer p { color: var(--muted-foreground); font-size: 0.875rem; max-width: 60ch;
     <div class="wrap sec">
       <div class="sec-head">
         <span class="label">Roadmap</span>
-        <div><h2>Where it stands.</h2><p class="lede">Built in the open, one step at a time.</p></div>
+        <div><h2>Status.</h2></div>
       </div>
       <div class="road">
         <ol>
@@ -690,7 +658,7 @@ footer p { color: var(--muted-foreground); font-size: 0.875rem; max-width: 60ch;
     <div class="wrap sec">
       <div class="sec-head">
         <span class="label">Docs</span>
-        <div><h2>Documentation.</h2><p class="lede">Start with the simulator today. The rest fills in as each part is built.</p></div>
+        <div><h2>Documentation.</h2></div>
       </div>
       <div class="docs">
         <nav aria-label="Documentation" id="docNav"></nav>
@@ -702,7 +670,7 @@ footer p { color: var(--muted-foreground); font-size: 0.875rem; max-width: 60ch;
   <section class="cta-band">
     <div class="wrap">
       <span class="label">Follow along</span>
-      <h2>A square of glass, one orange button, and an agent that designs.</h2>
+      <h2>Follow the build.</h2>
       <div class="hero-cta">
         <a class="btn btn-primary" href="https://github.com/SarkarShubhdeep/tessera" target="_blank" rel="noopener">Star on GitHub</a>
         <a class="btn" href="https://github.com/SarkarShubhdeep/tessera/blob/main/docs/decisions.md" target="_blank" rel="noopener">Read the decisions</a>
@@ -715,7 +683,7 @@ footer p { color: var(--muted-foreground); font-size: 0.875rem; max-width: 60ch;
   <div class="wrap">
     <div style="display:grid;gap:0.75rem">
       <a class="mark" href="#top"><span class="mark-tile" aria-hidden="true"></span>TESSERA</a>
-      <p>A tessera is a single square tile in a mosaic. Apache-2.0. Built on ESP-Claw by Espressif and LVGL. Designed for the ESP-Mosaico.</p>
+      <p>Apache-2.0. Built on ESP-Claw and LVGL.</p>
     </div>
     <div class="foot-links">
       <a class="btn btn-ghost" href="https://github.com/SarkarShubhdeep/tessera" target="_blank" rel="noopener">Repository</a>
@@ -827,39 +795,87 @@ footer p { color: var(--muted-foreground); font-size: 0.875rem; max-width: 60ch;
   }
 
   /* ---------- screen builders ---------- */
-  /* The pixel orb, built once: an 11 x 11 grid on a 16-unit pitch, kept inside the circle.
-     ux/uy point outward, r is the ring, k a stable per-pixel random; oi/ol are the idle and
-     listening opacities; the equalizer columns are cut to the circle for the speaking state. */
-  var DISC = (function () {
-    var n = 11, pitch = 16, c = (n - 1) / 2, pix = "", eq = "";
-    var wave = [0.35, 0.6, 0.9, 0.55, 1, 0.75, 0.95, 0.5, 0.8, 0.45, 0.3];
-    for (var j = 0; j < n; j++) {
-      for (var i = 0; i < n; i++) {
-        var dx = i - c, dy = j - c, d = Math.sqrt(dx * dx + dy * dy);
-        if (d > c + 0.45) continue;
-        var len = d || 1, k = ((i * 73 + j * 151 + i * j * 7) % 97) / 97;
-        pix += '<i style="--x:' + (i * pitch + 1) + ';--y:' + (j * pitch + 1) +
-          ';--ux:' + (dx / len).toFixed(3) + ';--uy:' + (dy / len).toFixed(3) +
-          ';--r:' + Math.round(d) + ';--k:' + k.toFixed(3) +
-          ';--oi:' + (k < 0.14 ? 0.25 : 1) + ';--ol:' + (Math.floor(d) % 2 === 0 ? 1 : 0.18) + '"></i>';
-      }
-    }
-    for (var col = 0; col < n; col++) {
-      var cx = col - c, half = Math.sqrt(Math.max(0, (c + 0.45) * (c + 0.45) - cx * cx)), h = half * wave[col], cells = "";
-      for (var row = 0; row < n; row++) {
-        if (Math.abs(row - c) <= h) cells += '<i style="--x:0;--y:' + (row * pitch + 1) + '"></i>';
-      }
-      eq += '<b style="--x:' + (col * pitch + 1) + ';--d:' + (-Math.abs(cx) * 70) + 'ms">' + cells + '</b>';
-    }
-    return '<div class="disc" aria-hidden="true"><div class="pix">' + pix + '</div><div class="eq">' + eq + '</div></div>';
-  })();
-
   function orbLayer() {
     return '<div class="layer" data-layer="orb"><div class="clock" data-clock>09:41</div>' +
-      '<div class="orb-wrap">' + DISC + '</div>' +
+      '<canvas class="presence" aria-hidden="true"></canvas>' +
       '<div class="status" data-status>Tap to talk</div></div>';
   }
   var STATUS = { idle: "Tap to talk", listening: "Listening", thinking: "Thinking", speaking: "Speaking" };
+
+  /* ---------- presence: a ring of square segments ----------
+     Follows the common agent-UI pattern: one object that morphs between states; listening follows
+     the user's voice, speaking follows the agent's voice, thinking is a steady non-audio motion
+     (a lit arc circling), idle is nearly still. The page has no microphone, so a speech-like
+     signal stands in for both voices. All sizes are in the 480-unit screen space. */
+  var SEG = 24, PRES = [], ACCENT = null;
+  function voice(t, seed) {
+    var syl = Math.max(0, Math.sin(t * 6.1 + seed)) * (0.55 + 0.45 * Math.sin(t * 1.3 + seed * 2));
+    var grit = 0.5 + 0.5 * Math.sin(t * 17 + seed * 3);
+    var phrase = Math.sin(t * 0.7 + seed) > -0.85 ? 1 : 0.2; /* short pauses between phrases */
+    return Math.min(1, (syl * 0.85 + grit * 0.15 * syl) * phrase);
+  }
+  function Presence(canvas, stage) {
+    this.c = canvas; this.stage = stage; this.ctx = canvas.getContext("2d");
+    this.R = 64; this.seg = 16; this.len = []; this.alpha = []; this.w = 0;
+    for (var i = 0; i < SEG; i++) { this.len.push(12); this.alpha.push(1); }
+  }
+  Presence.prototype.targets = function (st, t, i) {
+    var L = 12, A = 1, lvl;
+    if (st === "listening") {
+      lvl = 0.18 + 0.82 * voice(t * 0.9, 1.7);
+      L = 12 + 64 * lvl * (0.35 + 0.65 * Math.abs(Math.sin(i * 1.9 + t * 5.3)));
+    } else if (st === "speaking") {
+      lvl = 0.12 + 0.88 * voice(t * 1.1, 0.3);
+      var m = Math.min(i, SEG - i) / (SEG / 2); /* symmetric around the top */
+      L = 12 + 56 * lvl * (0.4 + 0.6 * Math.abs(Math.sin(m * 5.1 + t * 7.7)));
+    } else if (st === "thinking") {
+      var head = (t * 0.85 % 1) * SEG, d = (head - i + SEG) % SEG;
+      A = Math.max(0.22, 1 - d / 13);
+      L = d < 2.5 ? 22 : 12;
+    }
+    return [L, A];
+  };
+  Presence.prototype.frame = function (t, dt) {
+    var c = this.c, rect = c.getBoundingClientRect();
+    if (rect.width === 0 || rect.bottom < 0 || rect.top > window.innerHeight) return;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2), W = Math.round(rect.width * dpr);
+    if (W !== this.w) { c.width = c.height = this.w = W; }
+    var st = this.stage.getAttribute("data-state");
+    var k = REDUCED ? 1 : 1 - Math.exp(-dt * 14);
+    var R = st === "listening" ? 74 : st === "speaking" ? 70 : 64;
+    if (st === "idle" && !REDUCED) R += 3 * Math.sin(t * 2 * Math.PI / 3);
+    this.R += (R - this.R) * k;
+    /* Idle: segments widen until they touch, a solid ring; any activity opens it into segments. */
+    this.seg += ((st === "idle" ? 16.9 : 12) - this.seg) * k;
+    var ctx = this.ctx, s = W / 480;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, W, W);
+    ctx.setTransform(s, 0, 0, s, 240 * s, 236 * s);
+    ctx.fillStyle = ACCENT;
+    for (var i = 0; i < SEG; i++) {
+      var tg = this.targets(st, REDUCED ? 1.3 : t, i);
+      this.len[i] += (tg[0] - this.len[i]) * k;
+      this.alpha[i] += (tg[1] - this.alpha[i]) * k;
+      ctx.save();
+      ctx.rotate(i / SEG * Math.PI * 2 - Math.PI / 2);
+      ctx.globalAlpha = this.alpha[i];
+      ctx.fillRect(this.R, -this.seg / 2, this.len[i], this.seg);
+      ctx.restore();
+    }
+  };
+  function addPresence(canvas, stage) {
+    var p = new Presence(canvas, stage);
+    PRES.push(p);
+    return p;
+  }
+  var lastT = 0;
+  function presenceLoop(now) {
+    if (!ACCENT) ACCENT = getComputedStyle(document.documentElement).getPropertyValue("--screen-accent").trim() || "#ff5a1f";
+    var t = now / 1000, dt = lastT ? Math.min(0.1, t - lastT) : 0.016;
+    lastT = t;
+    for (var i = 0; i < PRES.length; i++) PRES[i].frame(t, dt);
+    if (!REDUCED) requestAnimationFrame(presenceLoop);
+  }
 
   function Screen(el, opts) {
     opts = opts || {};
@@ -869,6 +885,7 @@ footer p { color: var(--muted-foreground); font-size: 0.875rem; max-width: 60ch;
       (opts.detents ? '<div class="detent" data-detent></div>' : '') +
       '<div class="mute-veil">MUTED</div></div>';
     this.stage = el.querySelector(".stage");
+    this.presence = addPresence(el.querySelector("canvas.presence"), this.stage);
     this.orb = el.querySelector('[data-layer="orb"]');
     this.plateLayer = el.querySelector('[data-layer="plate"]');
     this.plate = el.querySelector(".plate");
@@ -928,10 +945,10 @@ footer p { color: var(--muted-foreground); font-size: 0.875rem; max-width: 60ch;
     [2200, function () { hero.state("listening"); }],
     [4200, function () { hero.state("thinking"); }],
     [5600, function () { hero.state("speaking"); }],
-    [6300, function () { hero.showPlate("timer"); }],
-    [11000, function () { hero.showPlate("number", "right"); }],
-    [14500, function () { hero.showPlate("list", "right"); }],
-    [18000, null]
+    [7800, function () { hero.showPlate("timer"); }],
+    [12500, function () { hero.showPlate("number", "right"); }],
+    [16000, function () { hero.showPlate("list", "right"); }],
+    [19500, null]
   ];
   function heroLoop() {
     HERO_STEPS.forEach(function (st) {
@@ -962,7 +979,7 @@ footer p { color: var(--muted-foreground); font-size: 0.875rem; max-width: 60ch;
 
   /* ---------- orb states row ---------- */
   var statesEl = document.getElementById("states");
-  [["idle", "Full disc · breathes"], ["listening", "Rings · ripple out"], ["thinking", "Shatters · revolves"], ["speaking", "Equalizer · beats"]].forEach(function (s) {
+  [["idle", "Nearly still"], ["listening", "Follows your voice"], ["thinking", "A light circling"], ["speaking", "Follows its voice"]].forEach(function (s) {
     var f = document.createElement("figure");
     f.innerHTML = '<div class="screen"></div><figcaption><span class="label">' + s[0] + '</span><span>' + s[1] + '</span></figcaption>';
     statesEl.appendChild(f);
@@ -1020,7 +1037,7 @@ footer p { color: var(--muted-foreground); font-size: 0.875rem; max-width: 60ch;
         busy = false;
         idx = deck.indexOf("timer"); showIdx("right");
         log('"Tea timer, four minutes." Claude answered with a <b>timer</b> plate.');
-      }, REDUCED ? 0 : 650);
+      }, REDUCED ? 0 : 1800);
     }, REDUCED ? 0 : 1500);
   }
   function tapAi() {
@@ -1163,5 +1180,11 @@ footer p { color: var(--muted-foreground); font-size: 0.875rem; max-width: 60ch;
 
   tickClocks();
   setInterval(tickClocks, 15000);
+  requestAnimationFrame(presenceLoop);
+  if (REDUCED) {
+    /* Still frames: redraw when a state changes. */
+    new MutationObserver(function () { requestAnimationFrame(presenceLoop); })
+      .observe(document.body, { attributes: true, subtree: true, attributeFilter: ["data-state"] });
+  }
 })();
 </script>
