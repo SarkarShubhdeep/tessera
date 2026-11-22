@@ -39,3 +39,9 @@ CONFIG_LV_USE_SYSMON=y
 CONFIG_LV_USE_PERF_MONITOR=y
 CONFIG_LV_USE_PERF_MONITOR_LOG_MODE=y
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=16384
+
+# On a crash: save a core dump to the coredump partition and halt, never reboot. A halted board keeps
+# the motor pin low and can't fall into a reset loop; the dump is read back over download mode.
+CONFIG_ESP_SYSTEM_PANIC_PRINT_HALT=y
+CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH=y
+CONFIG_ESP_COREDUMP_DATA_FORMAT_ELF=y
