@@ -12,7 +12,7 @@ Everything Tessera uses today, and how to change each part. The reasons behind e
 | Board | ESP-Mosaico v1.2 (ESP32-S31, 480×480 AMOLED, touch, mic, AI button) | Pins and drivers live in `firmware/main/board.c` and `board.h`. A second board is on the roadmap |
 | Firmware | C, ESP-IDF 6.1, LVGL 9.5 | LVGL is pinned in `third_party/lvgl`; ESP-IDF version in your install |
 | Simulator | The same UI code in an SDL2 window on macOS | `sim/`, see below |
-| Answers | Claude API, `claude-opus-5-5`, effort `low` | `MODEL` and the `effort` line in `firmware/main/claude.c` |
+| Answers | Claude API, `claude-opus-5-5`, effort `low`, with web search | `MODEL` and the `effort` line in `firmware/main/claude.c` |
 | Speech to text | Groq, `whisper-large-v3-turbo` | `URL` and `MODEL` in `firmware/main/groq.c` |
 | Keys and Wi-Fi | On the device, in its settings storage (NVS) | See [Keys and settings](#keys-and-settings) |
 
@@ -65,6 +65,25 @@ server-side fallback on, and one tool, `show_plate`, through which Claude picks 
   plate types themselves are in the [design system](design-system.md).
 
 Tessera is Claude only ([decision 003](decisions.md#003-claude-only-keep-mcp-2026-11-21)).
+
+### Live data: the clock, your place, web search
+
+- **Clock:** the board sets its time over the internet (SNTP, `pool.ntp.org`) once Wi-Fi is up. Set a
+  **time zone** on a setup page, otherwise the clock is UTC or ESP-Claw's saved zone.
+- **Place:** optional, a city and region. Each question tells Claude the local time and, if set, the place,
+  so "the weather here" means something. The place goes to Anthropic with each question; it's never logged.
+- **Web search:** Claude can use Anthropic's server-side web search (`web_search_20260209`), at most 3
+  searches per question, only when an answer needs live or recent facts. Anthropic runs the search; the board
+  never visits a website. To turn it off or change the limit: `SEARCHES` and the tool in `claude.c`.
+- **Cost and speed** (measured 2026-11-22):
+  - A question without a search: about 2.8–3.8 s from letting go to the plate.
+  - The fixed part of the request (instructions and tools, about 7,200 tokens) is cached by Anthropic for
+    5 minutes. A question within 5 minutes of the last one reads it at 5% of the input price. The first
+    question after a gap writes it at 1.25×.
+  - A question that searches takes longer (10–35 s) and costs more: each search is billed, plus the
+    results it reads.
+- **Not reliable yet: live readings.** Web search finds forecasts and news well, but not a single current
+  temperature. A weather tool backed by a weather service is planned.
 
 ### Speech to text: Groq
 

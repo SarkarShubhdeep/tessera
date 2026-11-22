@@ -386,13 +386,27 @@ void ui_show_splash(const char *version)
     lv_timer_set_repeat_count(t, 1);
 }
 
-/* ---------- clock (the board will use SNTP time; the simulator fakes it) ---------- */
+/* ---------- clock: the platform says what time it is (the board after SNTP, the Mac its own) ---------- */
+
+static ui_clock_cb_t s_clock_cb;
 
 static void clock_tick(lv_timer_t *t)
 {
     (void)t;
-    uint32_t s = lv_tick_get() / 1000 + 9 * 3600 + 41 * 60;
-    lv_label_set_text_fmt(s_clock, "%02u:%02u", (unsigned)((s / 3600) % 24), (unsigned)((s / 60) % 60));
+    int h, m;
+    if (s_clock_cb && s_clock_cb(&h, &m)) {
+        lv_label_set_text_fmt(s_clock, "%02d:%02d", h, m);
+    } else {
+        lv_label_set_text(s_clock, "--:--");   /* not set yet */
+    }
+}
+
+void ui_set_clock_source(ui_clock_cb_t cb)
+{
+    s_clock_cb = cb;
+    if (s_clock) {
+        clock_tick(NULL);
+    }
 }
 
 /* ---------- build ---------- */

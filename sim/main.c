@@ -19,6 +19,8 @@
 #include "ui/setup.h"
 #include "ui/ui.h"
 
+#include <time.h>
+
 #define SCREEN_W 480
 #define SCREEN_H 480
 #define MAX_FILES 32
@@ -127,6 +129,24 @@ static const char *base_name(const char *path)
     return name;
 }
 
+/* The ring's clock: the Mac's local time; snapshots use a fixed 09:41 so the gallery doesn't change. */
+static bool mac_clock(int *h, int *m)
+{
+    time_t now = time(NULL);
+    struct tm t;
+    localtime_r(&now, &t);
+    *h = t.tm_hour;
+    *m = t.tm_min;
+    return true;
+}
+
+static bool fixed_clock(int *h, int *m)
+{
+    *h = 9;
+    *m = 41;
+    return true;
+}
+
 int main(int argc, char **argv)
 {
     lv_init();
@@ -138,6 +158,7 @@ int main(int argc, char **argv)
     lv_indev_t *kb = lv_sdl_keyboard_create();
 
     ui_create();
+    ui_set_clock_source(getenv("SNAP_DIR") ? fixed_clock : mac_clock);
     lv_timer_create(fake_voice, 33, NULL);
     lv_group_t *g = lv_group_create();
     lv_group_add_obj(g, lv_screen_active());

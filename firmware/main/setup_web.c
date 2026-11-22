@@ -13,6 +13,7 @@
 #include "cJSON.h"
 #include "esp_http_server.h"
 #include "esp_log.h"
+#include "clock.h"
 #include "keys.h"
 #include "lwip/sockets.h"
 #include "setup_ap.h"
@@ -34,6 +35,8 @@ static const struct {
     {"wifi_pass", KEY_WIFI_PASS, "wifi password"},
     {"claude", KEY_CLAUDE, "claude key"},
     {"groq", KEY_GROQ, "groq key"},
+    {"tz", KEY_TZ, "time zone"},
+    {"place", KEY_PLACE, "place"},
 };
 #define N_SETTINGS (sizeof(SETTINGS) / sizeof(SETTINGS[0]))
 
@@ -156,6 +159,9 @@ static esp_err_t save(httpd_req_t *req)
     }
     if (ok && i < N_SETTINGS && (SETTINGS[i].key == KEY_WIFI_NAME || SETTINGS[i].key == KEY_WIFI_PASS)) {
         setup_wifi_changed();   /* applied when setup ends, so the phone isn't dropped now */
+    }
+    if (ok && i < N_SETTINGS && SETTINGS[i].key == KEY_TZ) {
+        clock_apply_tz();
     }
     if (cJSON_IsString(val)) {
         memset(val->valuestring, 0, strlen(val->valuestring));   /* wipe before freeing */
