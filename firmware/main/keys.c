@@ -8,6 +8,7 @@
  * Values are never logged: only whether each is saved, its length, and where it comes from. */
 #include "keys.h"
 
+#include <stdlib.h>
 #include <string.h>
 
 #include "esp_log.h"
@@ -34,6 +35,7 @@ static const spec_t SPEC[KEY_COUNT] = {
     [KEY_TZ] = {"tz", "time_timezone", NULL, 3, 80, false},
     [KEY_PLACE] = {"place", NULL, NULL, 1, 80, false},
     [KEY_GEO] = {"geo", NULL, NULL, 5, 200, false},
+    [KEY_VOLUME] = {"volume", NULL, NULL, 1, 3, true},
 };
 
 void keys_log_stats(const char *when)
@@ -72,6 +74,14 @@ bool keys_valid(key_id_t id, const char *value)
     }
     if (s->prefix && strncmp(value, s->prefix, strlen(s->prefix)) != 0) {
         return false;
+    }
+    if (id == KEY_VOLUME) {   /* digits, 0-100 */
+        for (size_t i = 0; i < n; i++) {
+            if (value[i] < '0' || value[i] > '9') {
+                return false;
+            }
+        }
+        return atoi(value) <= 100;
     }
     for (size_t i = 0; i < n; i++) {
         unsigned char c = (unsigned char)value[i];

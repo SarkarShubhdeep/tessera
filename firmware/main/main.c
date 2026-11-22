@@ -19,10 +19,11 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "lvgl.h"
-#include "mic.h"
+#include "audio.h"
 #include "claude.h"
 #include "clock.h"
 #include "keys.h"
+#include "tts.h"
 #include "net.h"
 #include "settings.h"
 #include <string.h>
@@ -99,15 +100,19 @@ static const char *const PLATES[] = {p_timer, p_number, p_list, p_choice, p_gaug
 static void ring_level(lv_timer_t *t)
 {
     (void)t;
-    if (ui_get_state() == UI_STATE_LISTENING) {
+    ui_state_t st = ui_get_state();
+    if (st == UI_STATE_LISTENING) {
         ui_set_level(mic_level());
         return;
     }
-    float s = lv_tick_get() / 1000.0f;
-    float syl = fmaxf(0.0f, sinf(s * 6.1f)) * (0.55f + 0.45f * sinf(s * 1.3f));
-    float grit = 0.5f + 0.5f * sinf(s * 17.0f);
-    float phrase = sinf(s * 0.7f) > -0.85f ? 1.0f : 0.2f;
-    ui_set_level((uint8_t)(fminf(1.0f, (syl * 0.85f + grit * 0.15f * syl) * phrase) * 255.0f));
+    /* Speaking follows the real speaker (review 10). Only when the ring is on screen: a plate isn't moved. */
+    bool playing = spk_playing();
+    if (playing && st != UI_STATE_SPEAKING && ui_deck_pos() < 0 && !claude_busy()) {
+        ui_set_state(UI_STATE_SPEAKING);
+    } else if (!playing && st == UI_STATE_SPEAKING) {
+        ui_set_state(UI_STATE_IDLE);
+    }
+    ui_set_level(playing ? spk_level() : 0);
 }
 
 /* ---------- input ---------- */
@@ -168,6 +173,7 @@ static void ai_button_poll(lv_timer_t *t)
             ESP_LOGI(TAG, "AI button: still answering the last one; ignored");
         } else {
             ESP_LOGI(TAG, "AI button: listening");
+            tts_cancel();   /* stop speaking at once (review 10) */
             ui_set_caption("");
             ui_set_state(UI_STATE_LISTENING);
             mic_record_start();
@@ -187,7 +193,7 @@ static void ai_button_poll(lv_timer_t *t)
 static const char *SETUP = "setup";
 
 static const char *const KEY_NAME[KEY_COUNT] = {"wifi name", "wifi password", "claude key", "groq key",
-                                                "time zone", "place", "place location"};
+                                                "time zone", "place", "place location", "volume"};
 static const char *const SRC_NAME[] = {"missing", "saved in tessera", "from ESP-Claw"};
 
 static void print_status(void)
@@ -195,7 +201,9 @@ static void print_status(void)
     for (int i = 0; i < KEY_COUNT; i++) {
         key_src_t src;
         size_t n = keys_len((key_id_t)i, &src);
-        if (src == KEY_SRC_NONE) {
+        if (i == KEY_VOLUME) {
+            ESP_LOGI(SETUP, "volume: %d%%%s", spk_volume(), src == KEY_SRC_NONE ? " (default)" : "");
+        } else if (src == KEY_SRC_NONE) {
             ESP_LOGI(SETUP, "%s: missing", KEY_NAME[i]);
         } else {
             ESP_LOGI(SETUP, "%s: %s (%u chars)", KEY_NAME[i], SRC_NAME[src], (unsigned)n);
@@ -246,6 +254,13 @@ static const char *after_spaces(const char *s)
  * password typed after one would otherwise be read as a question, logged and sent to Claude. */
 static bool s_pw_next;
 
+/* The speaker volume from settings (default 60). Also called by the phone setup page after a save. */
+void apply_volume(void)
+{
+    char v[8];
+    spk_set_volume(keys_get(KEY_VOLUME, v, sizeof(v)) != KEY_SRC_NONE ? atoi(v) : 60);
+}
+
 static void key_command(char *line)
 {
     trim_end(line);
@@ -253,8 +268,9 @@ static void key_command(char *line)
     if (strcmp(arg, "status") == 0) {
         print_status();
     } else if (strncmp(arg, "groq ", 5) == 0 || strncmp(arg, "claude ", 7) == 0 || strncmp(arg, "tz ", 3) == 0 ||
-               strncmp(arg, "place ", 6) == 0) {
-        key_id_t id = arg[0] == 'g' ? KEY_GROQ : arg[0] == 'c' ? KEY_CLAUDE : arg[0] == 't' ? KEY_TZ : KEY_PLACE;
+               strncmp(arg, "place ", 6) == 0 || strncmp(arg, "volume ", 7) == 0) {
+        key_id_t id = arg[0] == 'g' ? KEY_GROQ : arg[0] == 'c' ? KEY_CLAUDE : arg[0] == 't' ? KEY_TZ
+                    : arg[0] == 'p' ? KEY_PLACE : KEY_VOLUME;
         const char *v = after_spaces(strchr(arg, ' '));
         if (strcmp(v, "clear") == 0) {
             clear(id);
@@ -264,9 +280,12 @@ static void key_command(char *line)
         if (id == KEY_TZ) {
             clock_apply_tz();
         }
+        if (id == KEY_VOLUME) {
+            apply_volume();
+        }
     } else {
-        ESP_LOGW(SETUP, "key commands: key status | key claude|groq|tz|place <value> | key claude|groq|tz|place "
-                      "clear");
+        ESP_LOGW(SETUP, "key commands: key status | key claude|groq|tz|place|volume <value> | key "
+                      "claude|groq|tz|place|volume clear");
     }
 }
 
@@ -453,6 +472,7 @@ static void claude_bring_up(void *arg)
     /* The console starts first, so settings can be typed in even with nothing saved. */
     xTaskCreate(console_task, "console", 6144, NULL, 3, NULL);
     keys_log_stats("at boot");
+    apply_volume();
     print_status();
     ESP_ERROR_CHECK(net_init());
     clock_start();   /* SNTP syncs once Wi-Fi is up (review 08) */
@@ -474,7 +494,8 @@ void app_main(void)
 
     ESP_ERROR_CHECK(board_touch_init(&s_touch));
     ESP_ERROR_CHECK(board_ai_button_init());
-    ESP_ERROR_CHECK(mic_start());
+    ESP_ERROR_CHECK(audio_start());
+    tts_start();
     board_dump_pins();   /* and once more with the inputs configured */
 
     ui_create();

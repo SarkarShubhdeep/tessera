@@ -9,9 +9,29 @@
 #define MIC_RATE_HZ          16000
 #define MIC_REC_MAX_SAMPLES  (MIC_RATE_HZ * 30)   /* 30 s, 960 KB in PSRAM */
 
-/* Start I2S (receive only) and the ES8311 ADC, and a task that measures the level every 20 ms.
- * Needs the on-board I2C bus (board_touch_init) first. */
-esp_err_t mic_start(void);
+/* Start I2S (full duplex), the ES8311 ADC and DAC, the microphone task and the speaker task.
+ * Needs the on-board I2C bus (board_touch_init) first. The amplifier stays off until something plays. */
+esp_err_t audio_start(void);
+
+/* ---------- speaker (review 10) ---------- */
+
+/* 16 kHz mono 16-bit samples, malloc'd; the speaker frees them. pcm == NULL marks the end of a reply. */
+typedef struct {
+    int16_t *pcm;
+    size_t n;
+} spk_chunk_t;
+
+/* Queue a piece of a reply (waits up to wait_ms for room). Chunks that follow within 1.5 s play as one
+ * reply. Frees the chunk itself if it can't be queued. */
+bool spk_play(spk_chunk_t chunk, int wait_ms);
+
+/* Stop at once and drop anything queued; the amplifier goes off. */
+void spk_stop(void);
+
+bool spk_playing(void);
+uint8_t spk_level(void);      /* output level 0-255, for the ring */
+void spk_set_volume(int pct); /* 0-100 */
+int spk_volume(void);
 
 /* Latest level, 0-255 (-47 dBFS = 0, -20 dBFS = 255; tuned on the board). */
 uint8_t mic_level(void);

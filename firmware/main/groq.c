@@ -14,7 +14,7 @@
 #include "esp_http_client.h"
 #include "esp_log.h"
 #include "keys.h"
-#include "mic.h"
+#include "audio.h"
 
 static const char *TAG = "groq";
 

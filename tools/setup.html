@@ -135,6 +135,14 @@ ul.facts { margin: 0; padding-left: 18px; color: var(--dim); display: grid; gap:
       </div>
       <div class="hint" data-hint></div>
     </div>
+    <div class="row" data-id="volume">
+      <div class="row-head"><b>Speaker volume</b><span class="state" data-state>–</span></div>
+      <div class="field">
+        <div class="box"><input type="text" inputmode="numeric" autocomplete="off" maxlength="3" placeholder="0 to 100 (0 = silent)" aria-label="Speaker volume"></div>
+        <button class="save" type="button" disabled>Save</button>
+      </div>
+      <div class="hint" data-hint></div>
+    </div>
   </section>
 
   <div class="actions">
@@ -180,7 +188,9 @@ ul.facts { margin: 0; padding-left: 18px; color: var(--dim); display: grid; gap:
     tz:        { status: "time zone", min: 3, max: 80, prefix: null, token: false,
                  send: function (v) { return "key tz " + v + "\r"; } },
     place:     { status: "place", min: 1, max: 80, prefix: null, token: false,
-                 send: function (v) { return "key place " + v + "\r"; } }
+                 send: function (v) { return "key place " + v + "\r"; } },
+    volume:    { status: "volume", min: 1, max: 3, prefix: null, token: false, number: true,
+                 send: function (v) { return "key volume " + v + "\r"; } }
   };
 
   /* Common time zones in POSIX form, which the board's clock needs (review 08). Anything else: type it. */
@@ -222,6 +232,7 @@ ul.facts { margin: 0; padding-left: 18px; color: var(--dim); display: grid; gap:
     if (s.prefix && v.indexOf(s.prefix) !== 0) return "Should start with " + s.prefix;
     if (s.token && !/^[A-Za-z0-9_-]+$/.test(v)) return "Letters, digits, - and _ only.";
     if (id === "wifi_name" && v !== v.trim()) return "Starts or ends with a space. Check that's right.";
+    if (s.number && (!/^[0-9]+$/.test(v) || +v > 100)) return "A number from 0 to 100.";
     return null;   /* valid */
   }
 

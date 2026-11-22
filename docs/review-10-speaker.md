@@ -1,6 +1,6 @@
 # Review 10: the speaker (Tessera says its answers)
 
-**Status:** draft 2026-11-22, waiting for approval. Nothing built yet.
+**Status:** approved 2026-11-22, built and audited (below). Not flashed yet.
 **Build:** step 09 plus speech out. The board shows the plate, then says a short spoken version of it
 through its own speaker, using Groq's text-to-speech. Issue
 [#24](https://github.com/SarkarShubhdeep/tessera/issues/24).
@@ -113,3 +113,31 @@ not next to your ear.
 **Stop rule, changed:** sound from the speaker is now expected **only after a question**. Stop and hold
 POWER if there's any buzz from the motor, any sound or pop at boot or while idle, a sound that doesn't stop,
 or a mismatched pin.
+
+## Build audit (2026-11-22)
+
+- Builds with no warnings. App 1.84 MB (`0x1d6400`).
+- **GPIO45:** written only by `board_amp()` and the boot-time hold in `board.c`. `board_amp()` is called
+  only by the speaker task in `audio.c`:
+  - on after 30 ms of silence has been written;
+  - off before the closing silence;
+  - off by the 10 s watchdog (restarted with every 20 ms of audio written) if playback stalls.
+- **The codec driver:** `gpio_if = NULL` and `pa_pin = -1`. Its GPIO helper (`audio_codec_gpio`) isn't
+  in the link map at all, as in review 03.
+- **I2S:** one full-duplex channel pair on I2S0 at 16 kHz. DOUT is GPIO52, and the transmit side sends zeros
+  whenever nothing is queued (`auto_clear_before_cb`).
+- **Helpers, tested on the Mac** (`tts_parse.c` has no ESP-IDF in it):
+  - **Resampling:** a synthetic 1 kHz tone as 24 kHz mono, 24 kHz "streamed" (data size 0xFFFFFFFF),
+    48 kHz stereo and 16 kHz mono comes out as 16,000 samples a second, still 1 kHz, at the same level.
+  - **WAV parsing:** a non-WAV buffer is refused.
+  - **Splitting:** a 221-character reply splits into two pieces at the sentence end (115 and 105). Text with
+    no sentence ends splits at spaces, never over 200.
+- **Logs:** the voice's log lines are counts, times, HTTP codes and the WAV format. The `plate:` log line
+  now leaves out `speech` and shows `(+ speech)` instead, so the spoken words aren't logged. The text is
+  wiped from memory after it's sent.
+- **Volume:** a `volume` setting (0–100, digits only) in `key status`, on both setup pages, and as
+  `key volume N` on the console. The default is 60. 0 means nothing is sent to Groq.
+- **Setup pages:** both still pass their tests with the new field.
+- **Storage:** writes only in `keys.c`.
+- **Not testable before the board:** the codec's DAC settings, the volume range, a pop at the amplifier
+  switch, and Groq's actual WAV format (logged once as `Groq WAV: N Hz`).

@@ -86,6 +86,12 @@ button.quiet { background: transparent; color: var(--dim); }
       <div class="acts"><button class="save" type="button" disabled>Save</button><button class="quiet clear" type="button">Clear</button></div>
       <div class="hint" data-hint></div>
     </div>
+    <div class="row" data-id="volume">
+      <div class="head"><b>Speaker volume</b><span class="state" data-state>…</span></div>
+      <div class="box"><input type="text" inputmode="numeric" autocomplete="off" maxlength="3" placeholder="0 to 100 (0 = silent)" aria-label="Speaker volume"></div>
+      <div class="acts"><button class="save" type="button" disabled>Save</button><button class="quiet clear" type="button">Clear</button></div>
+      <div class="hint" data-hint></div>
+    </div>
   </section>
 
   <div class="msg" id="msg" aria-live="polite">Loading the board's settings…</div>
@@ -110,7 +116,7 @@ button.quiet { background: transparent; color: var(--dim); }
   var RULES = {
     wifi_name: { min: 1, max: 32 }, wifi_pass: { min: 8, max: 63 },
     claude: { min: 20, max: 300, prefix: "sk-ant-", token: true }, groq: { min: 20, max: 200, prefix: "gsk_", token: true },
-    tz: { min: 3, max: 80 }, place: { min: 1, max: 80 }
+    tz: { min: 3, max: 80 }, place: { min: 1, max: 80 }, volume: { min: 1, max: 3, number: true }
   };
   /* Common time zones in POSIX form, which the board's clock needs (review 08). Anything else: type it. */
   var TZ = {
@@ -150,6 +156,7 @@ button.quiet { background: transparent; color: var(--dim); }
     if (v.length > r.max) return "Too long: at most " + r.max + " characters.";
     if (r.prefix && v.indexOf(r.prefix) !== 0) return "Should start with " + r.prefix;
     if (r.token && !/^[A-Za-z0-9_-]+$/.test(v)) return "Letters, digits, - and _ only.";
+    if (r.number && (!/^[0-9]+$/.test(v) || +v > 100)) return "A number from 0 to 100.";
     return null;
   }
   function update(row) {
@@ -168,7 +175,7 @@ button.quiet { background: transparent; color: var(--dim); }
       list.forEach(function (s) {
         var el = document.querySelector('.row[data-id="' + s.id + '"] [data-state]');
         if (!el) return;
-        el.textContent = s.state === "missing" ? "missing" : s.state + " (" + s.len + " chars)";
+        el.textContent = s.value != null ? s.value + "%" : s.state === "missing" ? "missing" : s.state + " (" + s.len + " chars)";
         el.className = "state" + (s.state === "saved in tessera" ? " tessera" : s.state === "missing" ? " missing" : "");
       });
     });

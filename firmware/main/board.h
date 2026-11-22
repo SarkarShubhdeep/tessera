@@ -35,12 +35,12 @@
 esp_err_t board_display_init(esp_lcd_panel_io_color_trans_done_cb_t on_done, void *ctx,
                              esp_lcd_panel_handle_t *ret_panel);
 
-/* Pin review 03: I2S to the ES8311 (microphone only). */
+/* Pin reviews 03 and 10: I2S to the ES8311 (microphone in, speaker out). */
 #define BOARD_GPIO_I2S_MCLK  54
 #define BOARD_GPIO_I2S_BCLK  37
 #define BOARD_GPIO_I2S_WS    49
 #define BOARD_GPIO_I2S_DIN   40   /* input */
-/* GPIO52 (I2S DOUT) and GPIO45 (amp enable, held low) are deliberately not used. */
+#define BOARD_GPIO_I2S_DOUT  52   /* output to the codec's DAC (review 10) */
 
 /* The on-board I2C bus (created by board_touch_init). */
 void *board_i2c_bus(void);
@@ -54,3 +54,7 @@ bool board_ai_button_pressed(void);
 
 /* Print the configuration of every pin listed above, for comparison with the pin review. */
 void board_dump_pins(void);
+
+/* The speaker amplifier (GPIO45, review 10): the only place it is switched. Low at boot. */
+void board_amp(bool on);
+bool board_amp_is_on(void);
