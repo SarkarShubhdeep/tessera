@@ -1,6 +1,6 @@
 # Review 05: voice (speech to Claude through Groq)
 
-**Status:** approved 2026-11-22, built and audited (below). Not flashed yet.
+**Status:** approved 2026-11-22, flashed (app slot only) and working (results at the end).
 **Build:** step 05a plus voice. Hold the AI button, speak, let go: the board sends the recording to Groq,
 gets the words back, sends them to Claude, and draws the plate. No Mac involved. The plan and the reasons
 for Groq are in issue [#7](https://github.com/SarkarShubhdeep/tessera/issues/7) and
@@ -164,3 +164,21 @@ restore.
   helper still isn't linked.
 - **Known limit:** the caption font is Latin-only. A question in, say, Hindi still goes to Claude
   correctly, but the caption under the ring shows only the Latin characters in it.
+
+## On the board (2026-11-22)
+
+**It works: Shubh talks to Tessera, with no Mac involved.** Flash verified, the board restarted by itself.
+`key status` answered `groq key: missing` and the command didn't come back on screen (no echo). Shubh
+entered the key in their own Terminal; it was never seen by Claude Code.
+
+| Question (as Groq heard it) | Audio | Groq | Claude | Release to plate | Plate |
+|---|---|---|---|---|---|
+| "What is the temperature in Fort Wayne right now?" | 3.8 s | 9.6 s | 3.3 s | 12.9 s | answer (no live data) |
+| "What are your features? Can you give me top two of them to try out now?" | 6.4 s | 2.5 s | 2.3 s | 4.9 s | list |
+
+- The first request after boot was slow at Groq (9.6 s); the next was 2.5 s. Likely the first TLS
+  connection and Groq's own cold start; worth measuring again over a few more questions.
+- Transcription was exact both times. Speech peaked at −18 to −21 dBFS.
+- The room read −40 to −43 dBFS today (−50 last time), above the −47 silence level, so a silent hold
+  would still be sent. To revisit if Whisper invents words from silence.
+- Claude has no live data yet (weather, time): it says so. A follow-up, not part of this step.
