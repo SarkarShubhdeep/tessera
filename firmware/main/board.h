@@ -7,6 +7,8 @@
 #include "esp_err.h"
 #include "esp_lcd_panel_io.h"
 #include "esp_lcd_panel_ops.h"
+#include "esp_lcd_touch.h"
+#include <stdbool.h>
 
 #define BOARD_LCD_W  480
 #define BOARD_LCD_H  480
@@ -22,11 +24,23 @@
 #define BOARD_GPIO_LCD_D3    9
 #define BOARD_GPIO_LCD_CS    50
 #define BOARD_GPIO_LCD_RST   44
+/* Pin review 02: inputs and the on-board I2C bus. */
+#define BOARD_GPIO_I2C_SDA   56   /* open-drain */
+#define BOARD_GPIO_I2C_SCL   3    /* open-drain */
+#define BOARD_GPIO_TOUCH_INT 6    /* input, polled */
+#define BOARD_GPIO_AI_BTN    7    /* input, pull-up, low = pressed */
 
 /* Ramp the 3.3 V rail on, then bring up the CO5300 panel over QSPI.
  * on_done runs (in an ISR) when a color transfer finishes. */
 esp_err_t board_display_init(esp_lcd_panel_io_color_trans_done_cb_t on_done, void *ctx,
                              esp_lcd_panel_handle_t *ret_panel);
+
+/* On-board I2C bus, then the CST9220 touch controller on it (address 0x5A only). */
+esp_err_t board_touch_init(esp_lcd_touch_handle_t *ret_touch);
+
+/* AI button: configure as input with pull-up; read returns true while pressed. */
+esp_err_t board_ai_button_init(void);
+bool board_ai_button_pressed(void);
 
 /* Print the configuration of every pin listed above, for comparison with the pin review. */
 void board_dump_pins(void);

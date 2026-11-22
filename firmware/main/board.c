@@ -10,10 +10,12 @@
 #include <string.h>
 
 #include "driver/gpio.h"
+#include "driver/i2c_master.h"
 #include "driver/ledc.h"
 #include "driver/spi_master.h"
 #include "esp_check.h"
 #include "esp_lcd_co5300.h"
+#include "esp_lcd_touch_cst9220.h"
 #include "esp_log.h"
 
 static const char *TAG = "board";
@@ -121,7 +123,7 @@ static const co5300_lcd_init_cmd_t s_init_cmds[] = {
     {0x29, (uint8_t[]){0x00}, 0, 600},
 };
 
-#define LCD_PCLK_HZ  (40 * 1000 * 1000)   /* ESP-Claw's proven speed; try 80 MHz later */
+#define LCD_PCLK_HZ  (80 * 1000 * 1000)   /* pin review 02; ESP-Claw ran 40 MHz */
 #define LCD_MAX_TRANSFER  (BOARD_LCD_W * 80 * 2)
 
 esp_err_t board_display_init(esp_lcd_panel_io_color_trans_done_cb_t on_done, void *ctx,
@@ -160,13 +162,57 @@ esp_err_t board_display_init(esp_lcd_panel_io_color_trans_done_cb_t on_done, voi
     return ESP_OK;
 }
 
+/* ---------- 10-12: on-board I2C and the touch controller ---------- */
+esp_err_t board_touch_init(esp_lcd_touch_handle_t *ret_touch)
+{
+    const i2c_master_bus_config_t bus_cfg = {
+        .i2c_port = I2C_NUM_0,
+        .sda_io_num = BOARD_GPIO_I2C_SDA,
+        .scl_io_num = BOARD_GPIO_I2C_SCL,
+        .clk_source = I2C_CLK_SRC_DEFAULT,
+        .glitch_ignore_cnt = 7,
+        .flags.enable_internal_pullup = true,
+    };
+    i2c_master_bus_handle_t bus;
+    ESP_RETURN_ON_ERROR(i2c_new_master_bus(&bus_cfg, &bus), TAG, "i2c bus");
+
+    esp_lcd_panel_io_i2c_config_t io_cfg = ESP_LCD_TOUCH_IO_I2C_CST9220_CONFIG();
+    esp_lcd_panel_io_handle_t io;
+    ESP_RETURN_ON_ERROR(esp_lcd_new_panel_io_i2c(bus, &io_cfg, &io), TAG, "touch io");
+
+    const esp_lcd_touch_config_t cfg = {
+        .x_max = BOARD_LCD_W,
+        .y_max = BOARD_LCD_H,
+        .rst_gpio_num = GPIO_NUM_NC,              /* no reset line on this board */
+        .int_gpio_num = BOARD_GPIO_TOUCH_INT,     /* input only; no callback, so no ISR */
+    };
+    ESP_RETURN_ON_ERROR(esp_lcd_touch_new_i2c_cst9220(io, &cfg, ret_touch), TAG, "touch");
+    ESP_LOGI(TAG, "CST9220 touch on I2C0 (SDA %d, SCL %d), INT %d polled", BOARD_GPIO_I2C_SDA,
+             BOARD_GPIO_I2C_SCL, BOARD_GPIO_TOUCH_INT);
+    return ESP_OK;
+}
+
+/* ---------- 13: AI button ---------- */
+esp_err_t board_ai_button_init(void)
+{
+    const gpio_config_t btn = {
+        .pin_bit_mask = 1ULL << BOARD_GPIO_AI_BTN,
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = GPIO_PULLUP_ENABLE,
+    };
+    return gpio_config(&btn);
+}
+
+bool board_ai_button_pressed(void) { return gpio_get_level(BOARD_GPIO_AI_BTN) == 0; }
+
 void board_dump_pins(void)
 {
     const uint64_t mask = (1ULL << BOARD_GPIO_MOTOR) | (1ULL << BOARD_GPIO_PA_EN) | (1ULL << BOARD_GPIO_VCC_EN) |
                           (1ULL << BOARD_GPIO_LCD_SCLK) | (1ULL << BOARD_GPIO_LCD_D0) | (1ULL << BOARD_GPIO_LCD_D1) |
                           (1ULL << BOARD_GPIO_LCD_D2) | (1ULL << BOARD_GPIO_LCD_D3) | (1ULL << BOARD_GPIO_LCD_CS) |
-                          (1ULL << BOARD_GPIO_LCD_RST) | (1ULL << 57) | (1ULL << 34);
-    printf("--- pin check (compare with docs/pin-review-01-screen.md) ---\n");
+                          (1ULL << BOARD_GPIO_LCD_RST) | (1ULL << BOARD_GPIO_I2C_SDA) | (1ULL << BOARD_GPIO_I2C_SCL) |
+                          (1ULL << BOARD_GPIO_TOUCH_INT) | (1ULL << BOARD_GPIO_AI_BTN) | (1ULL << 57) | (1ULL << 34);
+    printf("--- pin check (compare with docs/pin-review-01-screen.md and -02-input.md) ---\n");
     gpio_dump_io_configuration(stdout, mask);
     ESP_LOGI(TAG, "levels: motor(8)=%d (want 0), pa(45)=%d (want 0), vcc_en(60)=%d (want 0 = rail on)",
              gpio_get_level(BOARD_GPIO_MOTOR), gpio_get_level(BOARD_GPIO_PA_EN), gpio_get_level(BOARD_GPIO_VCC_EN));
