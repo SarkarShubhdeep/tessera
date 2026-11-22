@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Choice plate</title>
+<script src="../support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist+Pixel&amp;family=Geist+Mono:wght@500;600&amp;display=swap">
+<style>body{margin:0}a{color:#FF5A1F}a:hover{color:#F2EEE8}</style>
+</helmet>
+<div style="width: 480px; height: 480px; box-sizing: border-box; padding: 36px; background: #000000; color: #F2EEE8; font-family: 'Geist Mono', ui-monospace, monospace; display: flex; flex-direction: column;">
+  <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 16px; border-bottom: 2px solid #2A2622; font-size: 17px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; color: #6B655E;">
+    <span>Choose</span><span>3 options</span>
+  </div>
+  <div style="flex: 1; display: flex; flex-direction: column; padding-top: 26px; gap: 12px;">
+    <p style="margin: 0 0 14px; font-family: 'Geist Pixel', 'Geist Mono', monospace; font-size: 32px; line-height: 1.1;">Lights: warm or cool?</p>
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 22px; border: 2px solid #FF5A1F; background: #FF5A1F; color: #0A0908; font-size: 28px; font-weight: 600;"><span>Warm</span><span style="width: 14px; height: 14px; background: #0A0908;"></span></div>
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 22px; border: 2px solid #2A2622; font-size: 28px; font-weight: 600;"><span>Cool</span></div>
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 22px; border: 2px solid #2A2622; font-size: 28px; font-weight: 600;"><span>Off</span></div>
+  </div>
+  <div style="display: flex; justify-content: space-between; padding-top: 16px; border-top: 2px solid #2A2622; font-size: 15px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase;">
+    <span style="color: #6B655E;">Tap · choose</span><span>Hold AI · other</span>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":480,"height":480}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

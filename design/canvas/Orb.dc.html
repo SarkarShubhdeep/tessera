@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The orb</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist+Pixel&amp;family=Geist+Mono:wght@500;600&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#FF5A1F}a:hover{color:#F2EEE8}
+@keyframes ts-breathe{from{transform:scale(.91)}to{transform:scale(1)}}
+@keyframes ts-pulse{from{transform:scale(.83)}to{transform:scale(1.06)}}
+@keyframes ts-bar{from{height:28px}to{height:120px}}
+@keyframes ts-fade{from{opacity:.2}to{opacity:1}}
+.ts-breathe{animation:ts-breathe 2.4s ease-in-out infinite alternate}
+.ts-pulse{animation:ts-pulse .26s ease-out infinite alternate}
+.ts-bar{animation:ts-bar .36s ease-in-out infinite alternate}
+.ts-fade{animation:ts-fade .42s ease-in-out infinite alternate}
+@media (prefers-reduced-motion:reduce){.ts-breathe,.ts-pulse,.ts-bar,.ts-fade{animation:none}}
+</style>
+</helmet>
+<div style="width: 2120px; height: 620px; box-sizing: border-box; padding: 40px; background: #0A0908; color: #F2EEE8; font-family: 'Geist Mono', ui-monospace, monospace; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 40px;">
+  <div style="display: flex; flex-direction: column; gap: 16px;">
+    <div style="position: relative; width: 480px; height: 480px; background: #000000;">
+      <span style="position: absolute; top: 40px; left: 0; right: 0; text-align: center; font-size: 24px; letter-spacing: 2px; color: #6B655E;">09:41</span>
+      <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;"><span class="ts-breathe" style="width: 176px; height: 176px; border-radius: 50%; background: #FF5A1F;"></span></div>
+      <span style="position: absolute; bottom: 70px; left: 0; right: 0; text-align: center; font-size: 24px;">Tap to talk</span>
+    </div>
+    <div style="display: flex; justify-content: space-between; font-size: 13px; letter-spacing: 2px; text-transform: uppercase;"><span>Idle</span><span style="color: #8D867E;">Breathes · 2.4 s</span></div>
+  </div>
+  <div style="display: flex; flex-direction: column; gap: 16px;">
+    <div style="position: relative; width: 480px; height: 480px; background: #000000;">
+      <span style="position: absolute; top: 40px; left: 0; right: 0; text-align: center; font-size: 24px; letter-spacing: 2px; color: #6B655E;">09:41</span>
+      <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 14px;">
+        <span class="ts-bar" style="width: 22px; height: 40px; border-radius: 11px; background: #FF5A1F; animation-duration: .32s;"></span>
+        <span class="ts-bar" style="width: 22px; height: 40px; border-radius: 11px; background: #FF5A1F; animation-duration: .36s; animation-delay: 90ms;"></span>
+        <span class="ts-bar" style="width: 22px; height: 40px; border-radius: 11px; background: #FF5A1F; animation-duration: .40s; animation-delay: 180ms;"></span>
+        <span class="ts-bar" style="width: 22px; height: 40px; border-radius: 11px; background: #FF5A1F; animation-duration: .44s; animation-delay: 270ms;"></span>
+        <span class="ts-bar" style="width: 22px; height: 40px; border-radius: 11px; background: #FF5A1F; animation-duration: .48s; animation-delay: 360ms;"></span>
+      </div>
+      <span style="position: absolute; bottom: 70px; left: 0; right: 0; text-align: center; font-size: 24px;">Listening</span>
+    </div>
+    <div style="display: flex; justify-content: space-between; font-size: 13px; letter-spacing: 2px; text-transform: uppercase;"><span>Listening</span><span style="color: #8D867E;">Level bars · out of phase</span></div>
+  </div>
+  <div style="display: flex; flex-direction: column; gap: 16px;">
+    <div style="position: relative; width: 480px; height: 480px; background: #000000;">
+      <span style="position: absolute; top: 40px; left: 0; right: 0; text-align: center; font-size: 24px; letter-spacing: 2px; color: #6B655E;">09:41</span>
+      <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 22px;">
+        <span class="ts-fade" style="width: 30px; height: 30px; border-radius: 50%; background: #FF5A1F;"></span>
+        <span class="ts-fade" style="width: 30px; height: 30px; border-radius: 50%; background: #FF5A1F; animation-delay: 180ms;"></span>
+        <span class="ts-fade" style="width: 30px; height: 30px; border-radius: 50%; background: #FF5A1F; animation-delay: 360ms;"></span>
+      </div>
+      <span style="position: absolute; bottom: 70px; left: 0; right: 0; text-align: center; font-size: 24px;">Thinking</span>
+    </div>
+    <div style="display: flex; justify-content: space-between; font-size: 13px; letter-spacing: 2px; text-transform: uppercase;"><span>Thinking</span><span style="color: #8D867E;">Dots in turn · 420 ms</span></div>
+  </div>
+  <div style="display: flex; flex-direction: column; gap: 16px;">
+    <div style="position: relative; width: 480px; height: 480px; background: #000000;">
+      <span style="position: absolute; top: 40px; left: 0; right: 0; text-align: center; font-size: 24px; letter-spacing: 2px; color: #6B655E;">09:41</span>
+      <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;"><span class="ts-pulse" style="width: 176px; height: 176px; border-radius: 50%; background: #FF5A1F;"></span></div>
+      <span style="position: absolute; bottom: 70px; left: 0; right: 0; text-align: center; font-size: 24px;">Speaking</span>
+    </div>
+    <div style="display: flex; justify-content: space-between; font-size: 13px; letter-spacing: 2px; text-transform: uppercase;"><span>Speaking</span><span style="color: #8D867E;">Quick pulse · 260 ms</span></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":2120,"height":620}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

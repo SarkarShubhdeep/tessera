@@ -1,0 +1,1 @@
+{ "type": "choice", "question": "Lights: warm or cool?", "options": ["Warm", "Cool", "Off"], "selected": 0 }

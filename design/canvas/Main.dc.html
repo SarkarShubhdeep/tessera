@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Anatomy of a plate</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist+Pixel&amp;family=Geist+Mono:wght@500;600&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#FF5A1F}a:hover{color:#F2EEE8}
+</style>
+</helmet>
+<div style="width: 1280px; height: 720px; box-sizing: border-box; padding: 60px 64px; background: #0A0908; color: #F2EEE8; font-family: 'Geist Mono', ui-monospace, monospace; display: flex; gap: 64px; align-items: center;">
+  <div style="position: relative; width: 480px; height: 480px; flex-shrink: 0; background: #000000; outline: 1px solid #2A2622;">
+    <div style="position: absolute; inset: 0; box-sizing: border-box; padding: 36px; display: flex; flex-direction: column;">
+      <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 16px; border-bottom: 2px solid #2A2622; font-size: 17px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; color: #6B655E;">
+        <span>Timer · Tea</span>
+        <span style="display: flex; align-items: center; gap: 10px; color: #FF5A1F;"><span style="width: 10px; height: 10px; background: #FF5A1F;"></span>Live</span>
+      </div>
+      <div style="flex: 1; display: flex; flex-direction: column; justify-content: center;">
+        <div style="font-family: 'Geist Pixel', 'Geist Mono', monospace; font-size: 140px; line-height: 0.9; color: #F2EEE8;">3:58</div>
+        <div style="height: 8px; background: #2A2622; margin-top: 26px;"><div style="width: 99%; height: 100%; background: #FF5A1F;"></div></div>
+      </div>
+      <div style="display: flex; justify-content: space-between; padding-top: 16px; border-top: 2px solid #2A2622; font-size: 15px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase;">
+        <span style="color: #6B655E;">Hold AI · change</span><span>Tap · stop</span>
+      </div>
+    </div>
+    <div style="position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); display: flex; gap: 8px;">
+      <span style="width: 26px; height: 4px; background: #2A2622;"></span><span style="width: 26px; height: 4px; background: #F2EEE8;"></span><span style="width: 26px; height: 4px; background: #2A2622;"></span>
+    </div>
+    <span style="position: absolute; left: -14px; top: 28px; width: 28px; height: 28px; background: #FF5A1F; color: #0A0908; font-size: 15px; font-weight: 600; display: flex; align-items: center; justify-content: center;">1</span>
+    <span style="position: absolute; left: -14px; top: 200px; width: 28px; height: 28px; background: #FF5A1F; color: #0A0908; font-size: 15px; font-weight: 600; display: flex; align-items: center; justify-content: center;">2</span>
+    <span style="position: absolute; left: -14px; top: 422px; width: 28px; height: 28px; background: #FF5A1F; color: #0A0908; font-size: 15px; font-weight: 600; display: flex; align-items: center; justify-content: center;">3</span>
+    <span style="position: absolute; right: -14px; top: 452px; width: 28px; height: 28px; background: #FF5A1F; color: #0A0908; font-size: 15px; font-weight: 600; display: flex; align-items: center; justify-content: center;">4</span>
+  </div>
+  <div style="display: flex; flex-direction: column; gap: 28px; min-width: 0;">
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      <span style="font-size: 13px; letter-spacing: 2px; text-transform: uppercase; color: #8D867E;">Anatomy</span>
+      <h1 style="margin: 0; font-family: 'Geist Pixel', 'Geist Mono', monospace; font-weight: 400; font-size: 44px; line-height: 1.05;">Every plate is the same frame.</h1>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 18px; font-size: 16px; line-height: 1.5;">
+      <div style="display: flex; gap: 16px;"><span style="color: #FF5A1F; font-weight: 600;">1</span><span><b style="font-weight: 600;">Header.</b> <span style="color: #8D867E;">What this is, and its status. Uppercase Geist Mono 17, +2 px tracking. A live plate gets an accent square. 2 px rule below.</span></span></div>
+      <div style="display: flex; gap: 16px;"><span style="color: #FF5A1F; font-weight: 600;">2</span><span><b style="font-weight: 600;">Body.</b> <span style="color: #8D867E;">The one thing the plate is about, set huge in Geist Pixel 140. Centred in the space left over.</span></span></div>
+      <div style="display: flex; gap: 16px;"><span style="color: #FF5A1F; font-weight: 600;">3</span><span><b style="font-weight: 600;">Footer.</b> <span style="color: #8D867E;">The two gestures that matter here. The dim one is secondary, the bright one primary. 2 px rule above.</span></span></div>
+      <div style="display: flex; gap: 16px;"><span style="color: #FF5A1F; font-weight: 600;">4</span><span><b style="font-weight: 600;">Detents.</b> <span style="color: #8D867E;">One tick per position in the deck, the orb first. The lit tick is where you are.</span></span></div>
+    </div>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: #8D867E;">
+      <span style="border: 1px solid #2A2622; padding: 6px 8px;">Margin 36</span>
+      <span style="border: 1px solid #2A2622; padding: 6px 8px;">Rule 2</span>
+      <span style="border: 1px solid #2A2622; padding: 6px 8px;">Radius 0</span>
+      <span style="border: 1px solid #2A2622; padding: 6px 8px;">480 × 480 canvas</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":720}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -74,7 +74,7 @@ brew install sdl2 cmake ninja   # if needed
 cmake -S . -B build -G Ninja && ninja -C build && ./build/tessera_sim
 ```
 
-Click the screen to cycle the orb's states.
+Swipe left (drag or arrow keys) through the example plates in `sim/plates/`; click the orb to cycle its states.
 
 ## Docs
 

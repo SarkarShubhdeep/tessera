@@ -1,0 +1,1 @@
+{ "type": "gauge", "label": "Battery", "value": 84, "min": 0, "max": 100, "unit": "%", "detail": "About 3 hours left" }
