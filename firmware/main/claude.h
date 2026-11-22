@@ -23,9 +23,6 @@ typedef struct {
     char *text;         /* caller frees with free */
 } claude_evt_t;
 
-/* Queue a typed question. Returns false if one is already in flight. */
-bool claude_ask(const char *question);
-
 /* Queue a recording (16 kHz mono): Groq turns it into words, then Claude answers. The buffer must stay
  * untouched until claude_busy() is false. Returns false if a request is already in flight. */
 bool claude_ask_voice(const int16_t *pcm, size_t samples);

@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- No network access: nothing can be loaded or sent anywhere. Only this file's own script and styles run.
+     The board is reached over the USB cable with Web Serial, which is not a network request. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<title>Tessera Setup</title>
+<style>
+:root {
+  --bg: #000; --fg: #f2eee8; --dim: #8a837b; --rule: #2a2622; --surface: #0e0d0c;
+  --accent: #ff5a1f; --ok: #7bc47f; --bad: #ff6b5a;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 var(--sans); }
+main { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; display: grid; gap: 24px; }
+header { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.mark { display: flex; align-items: center; gap: 10px; font: 600 14px/1 var(--mono); letter-spacing: 0.18em; }
+.mark i { width: 12px; height: 12px; background: var(--accent); display: inline-block; }
+h1 { font: 700 28px/1.15 var(--mono); margin: 0; letter-spacing: -0.01em; }
+p { margin: 0; color: var(--dim); }
+.label { font: 500 11px/1.2 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); }
+button { font: 600 13px/1 var(--mono); color: var(--fg); background: var(--surface); border: 1px solid var(--rule);
+  padding: 11px 14px; cursor: pointer; border-radius: 0; white-space: nowrap; }
+button:hover:not(:disabled) { border-color: var(--dim); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #0a0908; }
+button.quiet { background: transparent; }
+.conn { display: flex; align-items: center; gap: 12px; }
+.dot { width: 8px; height: 8px; background: var(--rule); display: inline-block; }
+.dot.on { background: var(--ok); }
+.panel { border: 1px solid var(--rule); }
+.row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 16px; }
+.row + .row { border-top: 1px solid var(--rule); }
+.row-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.row-head b { font: 600 15px/1.3 var(--mono); }
+.state { font: 500 12px/1.3 var(--mono); color: var(--dim); }
+.state.tessera { color: var(--ok); }
+.state.missing { color: var(--bad); }
+.field { display: flex; gap: 8px; }
+.field .box { flex: 1; min-width: 0; display: flex; border: 1px solid var(--rule); background: var(--surface); }
+.field input { flex: 1; min-width: 0; background: transparent; border: 0; color: var(--fg);
+  font: 14px/1.4 var(--mono); padding: 10px 12px; }
+.field input::placeholder { color: #4d4843; }
+.field .eye { border: 0; border-left: 1px solid var(--rule); padding: 0 12px; font-weight: 500; color: var(--dim); }
+.hint { font: 12px/1.4 var(--mono); color: var(--dim); min-height: 1.4em; }
+.hint.bad { color: var(--bad); }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.replies { border: 1px solid var(--rule); background: var(--surface); padding: 12px 14px; font: 13px/1.6 var(--mono);
+  min-height: 7.5em; max-height: 14em; overflow: auto; color: var(--fg); }
+.replies div { white-space: pre-wrap; word-break: break-word; }
+.replies .w { color: var(--accent); }
+.replies .e { color: var(--bad); }
+.notice { border: 1px solid var(--rule); padding: 14px 16px; display: grid; gap: 6px; }
+.notice.warn { border-color: var(--accent); }
+.notice b { font-family: var(--mono); font-size: 13px; }
+ul.facts { margin: 0; padding-left: 18px; color: var(--dim); display: grid; gap: 4px; }
+@media (min-width: 640px) { .field button.save { min-width: 84px; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <span class="mark"><i aria-hidden="true"></i>TESSERA</span>
+    <div class="conn">
+      <span class="dot" id="dot" aria-hidden="true"></span>
+      <span class="state" id="connState">Not connected</span>
+      <button class="primary" id="connect" type="button">Connect board</button>
+    </div>
+  </header>
+
+  <div>
+    <h1>Setup</h1>
+    <p style="margin-top:8px">Wi-Fi and API keys for the Mosaico, over the USB cable. You see what you type before you save it.</p>
+  </div>
+
+  <div class="notice warn" id="noSerial" hidden>
+    <b>This browser can't talk to the board.</b>
+    <p>Open this file in Chrome or Edge on your Mac. Safari and Firefox don't support Web Serial.</p>
+  </div>
+
+  <section class="panel" aria-label="Settings" id="settings">
+    <div class="row" data-id="wifi_name">
+      <div class="row-head"><b>Wi-Fi name</b><span class="state" data-state>–</span></div>
+      <div class="field">
+        <div class="box"><input type="text" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="32" placeholder="Network name" aria-label="Wi-Fi name"></div>
+        <button class="save" type="button" disabled>Save</button>
+      </div>
+      <div class="hint" data-hint></div>
+    </div>
+    <div class="row" data-id="wifi_pass">
+      <div class="row-head"><b>Wi-Fi password</b><span class="state" data-state>–</span></div>
+      <div class="field">
+        <div class="box"><input type="password" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="63" placeholder="8 to 63 characters" aria-label="Wi-Fi password"><button class="eye" type="button" aria-pressed="false">Show</button></div>
+        <button class="save" type="button" disabled>Save</button>
+      </div>
+      <div class="hint" data-hint></div>
+    </div>
+    <div class="row" data-id="claude">
+      <div class="row-head"><b>Claude API key</b><span class="state" data-state>–</span></div>
+      <div class="field">
+        <div class="box"><input type="password" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="300" placeholder="sk-ant-…" aria-label="Claude API key"><button class="eye" type="button" aria-pressed="false">Show</button></div>
+        <button class="save" type="button" disabled>Save</button>
+      </div>
+      <div class="hint" data-hint></div>
+    </div>
+    <div class="row" data-id="groq">
+      <div class="row-head"><b>Groq API key</b><span class="state" data-state>–</span></div>
+      <div class="field">
+        <div class="box"><input type="password" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="200" placeholder="gsk_…" aria-label="Groq API key"><button class="eye" type="button" aria-pressed="false">Show</button></div>
+        <button class="save" type="button" disabled>Save</button>
+      </div>
+      <div class="hint" data-hint></div>
+    </div>
+  </section>
+
+  <div class="actions">
+    <button type="button" id="refresh" disabled>Refresh status</button>
+    <button class="quiet" type="button" id="clearWifi" disabled>Clear Wi-Fi</button>
+    <button class="quiet" type="button" id="clearClaude" disabled>Clear Claude key</button>
+    <button class="quiet" type="button" id="clearGroq" disabled>Clear Groq key</button>
+  </div>
+
+  <section aria-label="Board replies">
+    <span class="label">Board replies</span>
+    <div class="replies" id="replies" aria-live="polite" style="margin-top:8px"></div>
+  </section>
+
+  <section class="notice">
+    <b>How this page handles your keys</b>
+    <ul class="facts">
+      <li>It reaches the board only through the USB cable (Chrome's Web Serial). Nothing goes over Wi-Fi or the internet.</li>
+      <li>It can't load or send anything on the network: its Content Security Policy blocks every request.</li>
+      <li>It never stores a value. Each field is emptied after Save.</li>
+      <li>The board replies only "saved", "missing" or "cleared" and a length, never the value.</li>
+      <li>Close <code>screen</code> or any other program using the board's port first.</li>
+    </ul>
+  </section>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  /* Each setting: the console command, and the same checks the firmware makes (keys.c). */
+  var SETTINGS = {
+    wifi_name: { status: "wifi name", min: 1, max: 32, prefix: null, token: false,
+                 send: function (v) { return "wifi name " + v + "\r"; } },
+    wifi_pass: { status: "wifi password", min: 8, max: 63, prefix: null, token: false,
+                 send: function (v) { return "wifi password\r" + v + "\r"; } },
+    claude:    { status: "claude key", min: 20, max: 300, prefix: "sk-ant-", token: true,
+                 send: function (v) { return "key claude " + v + "\r"; } },
+    groq:      { status: "groq key", min: 20, max: 200, prefix: "gsk_", token: true,
+                 send: function (v) { return "key groq " + v + "\r"; } }
+  };
+
+  var port = null, writer = null, reading = false;
+  var enc = new TextEncoder();
+  var $ = function (id) { return document.getElementById(id); };
+
+  function check(id, v) {
+    var s = SETTINGS[id];
+    if (!v) return "";
+    if (/[\x00-\x1f\x7f]/.test(v)) return "One line only: no line breaks or tabs.";
+    if (v.length < s.min) return "Too short: at least " + s.min + " characters (" + v.length + " now).";
+    if (v.length > s.max) return "Too long: at most " + s.max + " characters.";
+    if (s.prefix && v.indexOf(s.prefix) !== 0) return "Should start with " + s.prefix;
+    if (s.token && !/^[A-Za-z0-9_-]+$/.test(v)) return "Letters, digits, - and _ only.";
+    if (id === "wifi_name" && v !== v.trim()) return "Starts or ends with a space. Check that's right.";
+    return null;   /* valid */
+  }
+
+  /* Keys pasted from a password manager sometimes carry a trailing newline or spaces: drop those. */
+  function clean(id, v) {
+    v = v.replace(/[\r\n]+/g, "");
+    return (id === "claude" || id === "groq") ? v.trim() : v;
+  }
+
+  function reply(text, kind) {
+    var box = $("replies"), d = document.createElement("div");
+    d.textContent = text;   /* textContent only: board text is never parsed as HTML */
+    if (kind) d.className = kind;
+    box.appendChild(d);
+    while (box.childNodes.length > 40) box.removeChild(box.firstChild);
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function setConnected(on) {
+    $("dot").classList.toggle("on", on);
+    $("connState").textContent = on ? "Connected" : "Not connected";
+    $("connect").textContent = on ? "Disconnect" : "Connect board";
+    ["refresh", "clearWifi", "clearClaude", "clearGroq"].forEach(function (b) { $(b).disabled = !on; });
+    document.querySelectorAll(".row").forEach(updateRow);
+  }
+
+  function updateRow(row) {
+    var id = row.dataset.id, input = row.querySelector("input"), hint = row.querySelector("[data-hint]");
+    var v = clean(id, input.value), msg = check(id, v);
+    hint.textContent = msg || (v ? v.length + " characters, ready to save" : "");
+    hint.classList.toggle("bad", !!msg);
+    row.querySelector(".save").disabled = !(writer && v && msg === null);
+  }
+
+  async function send(text) {
+    if (!writer) return;
+    await writer.write(enc.encode(text));
+  }
+
+  /* Status lines look like "wifi name: saved in tessera (13 chars)". */
+  function parseStatus(text) {
+    Object.keys(SETTINGS).forEach(function (id) {
+      var p = SETTINGS[id].status + ": ";
+      if (text.indexOf(p) !== 0) return;
+      var rest = text.slice(p.length);
+      var el = document.querySelector('.row[data-id="' + id + '"] [data-state]');
+      el.textContent = rest;
+      el.className = "state" + (rest.indexOf("saved in tessera") === 0 ? " tessera" : rest === "missing" ? " missing" : "");
+    });
+  }
+
+  async function readLoop() {
+    reading = true;
+    var buf = "";
+    var decoder = new TextDecoderStream();
+    var closed = port.readable.pipeTo(decoder.writable).catch(function () {});
+    var reader = decoder.readable.getReader();
+    try {
+      while (reading) {
+        var r = await reader.read();
+        if (r.done) break;
+        buf += r.value;
+        var lines = buf.split(/\r?\n/);
+        buf = lines.pop();
+        if (buf.length > 4096) buf = "";
+        lines.forEach(function (raw) {
+          var line = raw.replace(/\x1b\[[0-9;]*m/g, "");
+          var m = /^([IWE]) \(\d+\) setup: (.*)$/.exec(line);
+          if (!m) return;   /* only the board's setup replies; the rest of the log is ignored */
+          parseStatus(m[2]);
+          reply(m[2], m[1] === "W" ? "w" : m[1] === "E" ? "e" : "");
+        });
+      }
+    } catch (e) {
+      reply("Lost the connection to the board.", "e");
+    } finally {
+      reader.releaseLock();
+      await closed;
+    }
+  }
+
+  async function connect() {
+    if (port) { return disconnect(); }
+    try {
+      port = await navigator.serial.requestPort({ filters: [{ usbVendorId: 0x303a }] });   /* Espressif */
+      await port.open({ baudRate: 115200 });
+      /* Both signals on, in one step, and never changed: the board resets only when RTS is on and DTR off. */
+      await port.setSignals({ dataTerminalReady: true, requestToSend: true });
+      writer = port.writable.getWriter();
+      setConnected(true);
+      reply("Connected. Asking the board for its settings…");
+      readLoop();
+      setTimeout(function () { send("key status\r"); }, 300);
+    } catch (e) {
+      port = null; writer = null;
+      if (e && e.name === "NotFoundError") return;   /* the picker was cancelled */
+      reply(e && e.name === "NetworkError"
+        ? "The port is busy. Close screen or any other program using the board, then try again."
+        : "Couldn't open the board's port.", "e");
+    }
+  }
+
+  async function disconnect() {
+    reading = false;
+    try { if (writer) { writer.releaseLock(); } } catch (e) {}
+    writer = null;
+    try { if (port.readable) await port.readable.cancel(); } catch (e) {}
+    try { await port.close(); } catch (e) {}
+    port = null;
+    setConnected(false);
+    reply("Disconnected.");
+  }
+
+  document.querySelectorAll(".row").forEach(function (row) {
+    var id = row.dataset.id, input = row.querySelector("input"), eye = row.querySelector(".eye");
+    input.addEventListener("input", function () { updateRow(row); });
+    input.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" && !row.querySelector(".save").disabled) row.querySelector(".save").click();
+    });
+    if (eye) eye.addEventListener("click", function () {
+      var show = input.type === "password";
+      input.type = show ? "text" : "password";
+      eye.textContent = show ? "Hide" : "Show";
+      eye.setAttribute("aria-pressed", show ? "true" : "false");
+    });
+    row.querySelector(".save").addEventListener("click", async function () {
+      var v = clean(id, input.value);
+      if (check(id, v) !== null) return;
+      await send(SETTINGS[id].send(v));
+      v = "";
+      input.value = "";   /* never kept */
+      if (eye && input.type === "text") eye.click();
+      updateRow(row);
+      setTimeout(function () { send("key status\r"); }, 600);
+    });
+  });
+
+  function clearCmd(cmd, what) {
+    return async function () {
+      if (!confirm("Clear the " + what + " saved in Tessera? The board falls back to what ESP-Claw saved, if anything.")) return;
+      await send(cmd);
+      setTimeout(function () { send("key status\r"); }, 600);
+    };
+  }
+  $("clearWifi").addEventListener("click", clearCmd("wifi clear\r", "Wi-Fi name and password"));
+  $("clearClaude").addEventListener("click", clearCmd("key claude clear\r", "Claude key"));
+  $("clearGroq").addEventListener("click", clearCmd("key groq clear\r", "Groq key"));
+  $("refresh").addEventListener("click", function () { send("key status\r"); });
+
+  if (!("serial" in navigator)) {
+    $("noSerial").hidden = false;
+    $("connect").disabled = true;
+  } else {
+    $("connect").addEventListener("click", connect);
+    navigator.serial.addEventListener("disconnect", function (e) { if (port && e.target === port) disconnect(); });
+  }
+  setConnected(false);
+})();
+</script>
+</body>
+</html>

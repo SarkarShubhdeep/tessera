@@ -59,7 +59,7 @@ static const char *TOOL_JSON =
     "\"required\":[\"type\"]}}";
 
 typedef struct {
-    char *question;          /* typed question, or NULL for a recording */
+    char *question;          /* unused since issue #16: questions come from the AI button only */
     const int16_t *pcm;      /* the recording (mic's PSRAM buffer) */
     size_t samples;
 } job_t;
@@ -305,16 +305,6 @@ static bool submit(job_t job)
         return false;
     }
     s_busy = true;
-    return true;
-}
-
-bool claude_ask(const char *question)
-{
-    char *q = strdup(question);
-    if (!submit((job_t){.question = q})) {
-        free(q);
-        return false;
-    }
     return true;
 }
 
