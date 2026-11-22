@@ -307,6 +307,17 @@ section { border-bottom: 1px solid var(--border); }
 .facts b { font: 700 0.875rem/1.4 var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; }
 .note { font: 500 0.75rem/1.5 var(--font-mono); color: var(--muted-foreground); }
 
+/* ---------- setup ---------- */
+.setup { border: 1px solid var(--border); }
+.setup > div { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 4fr) minmax(0, 5fr); gap: 1.25rem; padding: 1rem 1.25rem; align-items: baseline; }
+.setup > div + div { border-top: 1px solid var(--border); }
+.setup .label { padding-top: 0.15rem; }
+.setup b { font-weight: 700; }
+.setup p { color: var(--muted-foreground); font-size: 0.9375rem; }
+.setup code { font-family: var(--font-code); font-size: 0.8125rem; }
+@media (max-width: 760px) { .setup > div { grid-template-columns: 1fr; gap: 0.35rem; } }
+.setup-foot { display: flex; flex-wrap: wrap; gap: 0.75rem 1.25rem; align-items: center; justify-content: space-between; margin-top: 1rem; }
+
 /* ---------- boards ---------- */
 .boards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--border); }
 .boards > div { padding: 1.5rem; display: grid; gap: 1rem; align-content: start; min-width: 0; }
@@ -377,6 +388,7 @@ footer p { color: var(--muted-foreground); font-size: 0.875rem; max-width: 60ch;
       <a href="#plates">Plates</a>
       <a href="#interaction">Interaction</a>
       <a href="#build">Build</a>
+      <a href="#setup">Setup</a>
       <a href="#roadmap">Roadmap</a>
       <a href="#docs">Docs</a>
     </nav>
@@ -633,6 +645,32 @@ footer p { color: var(--muted-foreground); font-size: 0.875rem; max-width: 60ch;
         <div><h3>Data, not code</h3><p>The agent fills in plates.</p></div>
         <div><h3>Haptics as punctuation</h3><p>Short detents. Never a long buzz.</p></div>
         <div><h3>Simulator first</h3><p>Built on a Mac, then the board.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SETUP -->
+  <section id="setup">
+    <div class="wrap sec">
+      <div class="sec-head">
+        <span class="label">Setup</span>
+        <div>
+          <h2>What it runs on.</h2>
+          <p class="lede">Every tool and service Tessera uses, and where to change it.</p>
+        </div>
+      </div>
+      <div class="setup">
+        <div><span class="label">Board</span><b>ESP-Mosaico v1.2</b><p>Pins and drivers in <code>board.c</code>. Every new pin gets a written review before flashing.</p></div>
+        <div><span class="label">Firmware</span><b>C, ESP-IDF 6.1, LVGL 9.5</b><p>The UI uses only LVGL, so the same code builds for the board and the Mac.</p></div>
+        <div><span class="label">Simulator</span><b>SDL2 on macOS</b><p>The 480 × 480 screen in a window. Build it with CMake and Ninja.</p></div>
+        <div><span class="label">Answers</span><b>Claude, <code>claude-opus-5-5</code>, effort low</b><p>Model and effort in <code>claude.c</code>. Claude answers through one tool, <code>show_plate</code>.</p></div>
+        <div><span class="label">Speech</span><b>Groq, <code>whisper-large-v3-turbo</code></b><p>Any OpenAI-style transcription service: change two lines in <code>groq.c</code>.</p></div>
+        <div><span class="label">Keys</span><b>On the device, never in the repo</b><p>The Groq key is typed in by its owner: <code>key groq</code> on the device console.</p></div>
+        <div><span class="label">Flashing</span><b>App slot only, backup first</b><p>Factory partition table kept. A full flash backup restores the board.</p></div>
+      </div>
+      <div class="setup-foot">
+        <p class="note">Commands, swaps and recovery are in the setup guide.</p>
+        <a class="btn" href="https://github.com/SarkarShubhdeep/tessera/blob/main/docs/setup.md" target="_blank" rel="noopener">Open the setup guide</a>
       </div>
     </div>
   </section>
@@ -1146,6 +1184,9 @@ footer p { color: var(--muted-foreground); font-size: 0.875rem; max-width: 60ch;
     { id: "porting", title: "Porting a board", status: "Planned", body:
       '<h3>Porting a board</h3><p>How to describe a new board: pins, size class, shape and capabilities. A walk-through using an ESP32-S3 touch AMOLED.</p>' +
       placeholder("Written with step 05, the second board.", null, null) },
+    { id: "setup", title: "Setup", status: "Ready", body:
+      '<h3>Setup</h3><p>The board, toolchain, simulator, Claude and Groq, where keys live, and how to flash and recover. With how to change each one.</p>' +
+      '<p><a class="btn" href="' + GH + 'docs/setup.md" target="_blank" rel="noopener">Open the setup guide</a></p>' },
     { id: "hardware", title: "Hardware notes", status: "Ready", body:
       '<h3>ESP-Mosaico notes</h3><ul><li>Pin map for board revision v1.2</li><li>What each button does, and how to reach download mode</li><li>How to recover from bad firmware with a flash backup</li><li>The motor-at-boot lesson, and the pin review before every flash</li></ul>' +
       '<p><a class="btn" href="' + GH + 'docs/hardware.md" target="_blank" rel="noopener">Open hardware notes</a></p>' },
