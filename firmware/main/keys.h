@@ -1,4 +1,5 @@
-/* Tessera's own saved keys (review 05). NVS namespace "tessera"; ESP-Claw's "app" stays read-only.
+/* Tessera's own saved settings (reviews 05 and 06), NVS namespace "tessera". For each setting, Tessera's
+ * value wins; otherwise ESP-Claw's saved value (namespace "app", read only) is the fallback.
  * nvs_flash_init must have run first (settings_load does it). */
 #pragma once
 
@@ -6,22 +7,37 @@
 #include <stddef.h>
 #include "esp_err.h"
 
-#define KEYS_GROQ_MAX 200
+#define KEYS_MAX 300   /* longest value, without the terminator */
 
-/* Copy the saved Groq key into out. False if none is saved. Never creates anything. */
-bool keys_get_groq(char *out, size_t len);
+typedef enum {
+    KEY_WIFI_NAME,
+    KEY_WIFI_PASS,
+    KEY_CLAUDE,
+    KEY_GROQ,
+    KEY_COUNT,
+} key_id_t;
 
-/* Length of the saved Groq key, 0 if none. For the log: the key itself is never printed. */
-size_t keys_groq_len(void);
+typedef enum {
+    KEY_SRC_NONE,
+    KEY_SRC_TESSERA,
+    KEY_SRC_ESPCLAW,
+} key_src_t;
 
-/* Starts with gsk_, 20-200 characters, letters, digits, _ and - only. */
-bool keys_groq_valid(const char *key);
+/* Copy the setting into out (Tessera's, else ESP-Claw's) and say where it came from. Never creates
+ * anything. out is empty if the result is KEY_SRC_NONE. */
+key_src_t keys_get(key_id_t id, char *out, size_t len);
 
-/* Save (one NVS entry, then commit). ESP_ERR_INVALID_ARG if it doesn't look like a Groq key. */
-esp_err_t keys_set_groq(const char *key);
+/* Its length (0 if missing) and source, for the log: values are never printed. */
+size_t keys_len(key_id_t id, key_src_t *src);
 
-/* Delete that one entry. */
-esp_err_t keys_clear_groq(void);
+/* Length limits, prefix (sk-ant-, gsk_) and allowed characters. */
+bool keys_valid(key_id_t id, const char *value);
+
+/* Save Tessera's value (one NVS entry, then commit). ESP_ERR_INVALID_ARG if it fails keys_valid. */
+esp_err_t keys_set(key_id_t id, const char *value);
+
+/* Delete Tessera's value only; ESP-Claw's fallback, if any, applies again. */
+esp_err_t keys_clear(key_id_t id);
 
 /* Log the settings partition's used/free entry counts (read-only). */
 void keys_log_stats(const char *when);

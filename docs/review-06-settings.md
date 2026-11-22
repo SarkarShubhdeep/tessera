@@ -1,6 +1,6 @@
 # Review 06: Wi-Fi and the Claude key from Tessera's console
 
-**Status:** draft 2026-11-22, waiting for approval. Nothing built yet.
+**Status:** approved 2026-11-22, built and audited (below). Not flashed yet.
 **Build:** step 05b plus settings. Today Tessera can only use the Wi-Fi and Claude key that the factory
 ESP-Claw firmware saved. This step lets the owner set them from Tessera's own console, the same way as
 the Groq key, so a board that never ran ESP-Claw can be set up. Issue
@@ -18,7 +18,7 @@ agent or a chat. The console doesn't echo anything you type.
 | Command | What it does | What the board prints |
 |---|---|---|
 | `wifi name <name>` | Saves the network name (1–32 characters, spaces allowed) | `wifi name saved (N chars)` |
-| `wifi password` | The **next line** you type is saved as the password (8–63 characters). An empty line cancels. After 60 s it gives up | `type the wifi password on the next line`, then `wifi password saved (N chars)` |
+| `wifi password` | The **next line** you type is saved as the password (8–63 characters). An empty line cancels | `type the wifi password on the next line`, then `wifi password saved (N chars)` |
 | `wifi clear` | Deletes Tessera's saved name and password | `wifi settings cleared` |
 | `key claude <key>` | Saves the Claude key, if it starts with `sk-ant-` and is 20–300 characters | `claude key saved (N chars)` |
 | `key claude clear` | Deletes it | `claude key cleared` |
@@ -113,3 +113,24 @@ Tessera's value goes back to ESP-Claw's, if there is one.
 
 **Stop rule unchanged:** any buzz, any sound from the speaker, or a mismatched pin means hold POWER and
 restore.
+
+## Build audit (2026-11-22)
+
+- Builds with no warnings. App 1.83 MB (`0x1bf4f0`), in the 8 MB `main_app` slot (the usual warning about
+  the factory's 1.75 MB `vibe_mode` slot; nothing is written there). The simulator still builds.
+- **Changed from the plan:** no 60 s time-out after `wifi password`. With one, a password typed after the
+  time-out would have been read as a question: logged and sent to Claude. Now the next line is always the
+  password, however long it takes; an empty line cancels.
+- **NVS:** `nvs_set_str`, `nvs_commit` and `nvs_erase_key` appear only in `main/keys.c`, on namespace
+  `tessera`. `app` is opened only `NVS_READONLY` (in `settings.c` and in `keys.c`'s fallback read). Reads
+  open `tessera` read-only too, so nothing is created at boot. `nvs_erase_key` is the only erase linked
+  into `tessera.elf`; `nvs_flash_erase` and `nvs_erase_all` aren't in it.
+- **Logs:** every log line with a `%s` was checked. Settings lines print only a fixed setting name, the
+  source ("saved in tessera", "from ESP-Claw"), "saved / missing / cleared" and a length. Wi-Fi prints
+  only where the network came from, never its name. The questions Claude is asked are still logged, and a
+  line with `sk-ant-` or `gsk_` in it never becomes a question.
+- **Where each secret goes:** the Wi-Fi name and password only to the Wi-Fi driver (RAM, the driver's
+  flash storage stays off); the Claude key only to the `x-api-key` header to `api.anthropic.com`, read for
+  each question and wiped from our buffer right after; the Groq key as before. ESP-Claw's Claude key is
+  only used if it starts with `sk-ant-`.
+- **Pins:** no new pin calls.

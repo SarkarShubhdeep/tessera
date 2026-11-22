@@ -7,8 +7,9 @@
 #include "cJSON.h"
 #include "esp_err.h"
 
-/* Start the worker. The key stays in RAM and is sent only to api.anthropic.com. */
-esp_err_t claude_start(const char *api_key);
+/* Start the worker. The Claude key is read from storage for each question (Tessera's, else ESP-Claw's)
+ * and sent only to api.anthropic.com. */
+esp_err_t claude_start(void);
 
 typedef enum {
     CLAUDE_EVT_HEARD,   /* text: what Groq heard; Claude is being asked */

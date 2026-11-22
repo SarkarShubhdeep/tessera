@@ -58,7 +58,6 @@ static const char *TOOL_JSON =
     "\"min\":{\"type\":\"number\"},\"max\":{\"type\":\"number\"},\"seconds\":{\"type\":\"integer\"}},"
     "\"required\":[\"type\"]}}";
 
-static char s_key[320];
 typedef struct {
     char *question;          /* typed question, or NULL for a recording */
     const int16_t *pcm;      /* the recording (mic's PSRAM buffer) */
@@ -172,6 +171,15 @@ static cJSON *plate_from_response(int status, const char *body)
 
 static cJSON *ask_claude(const char *q, body_t *body)
 {
+    /* Read for each question (review 06): Tessera's saved key, else ESP-Claw's. Not kept in RAM. */
+    char key[KEYS_MAX + 1];
+    if (keys_get(KEY_CLAUDE, key, sizeof(key)) == KEY_SRC_NONE) {
+        return answer_plate("No Claude key saved. Type key claude and the key into the console.", "Setup");
+    }
+    if (!net_is_up()) {
+        memset(key, 0, sizeof(key));
+        return answer_plate("No Wi-Fi, so nothing was sent.", "Error");
+    }
     ESP_LOGI(TAG, "asking: %s", q);
     char *req = build_request(q);
     esp_http_client_config_t cfg = {
@@ -189,7 +197,8 @@ static cJSON *ask_claude(const char *q, body_t *body)
     int64_t t0 = esp_timer_get_time();
     esp_http_client_handle_t c = esp_http_client_init(&cfg);
     esp_http_client_set_header(c, "content-type", "application/json");
-    esp_http_client_set_header(c, "x-api-key", s_key);
+    esp_http_client_set_header(c, "x-api-key", key);   /* copied by the client; ours is wiped next */
+    memset(key, 0, sizeof(key));
     esp_http_client_set_header(c, "anthropic-version", "2026-10-21");
     esp_http_client_set_header(c, "anthropic-beta", "server-side-fallback-2026-07-01");
     esp_http_client_set_post_field(c, req, strlen(req));
@@ -221,8 +230,14 @@ static char *transcribe(const job_t *job)
         emit(CLAUDE_EVT_PLATE, answer_plate("No Wi-Fi, so nothing was sent.", "Error"), NULL);
         return NULL;
     }
-    char key[KEYS_GROQ_MAX + 1];
-    if (!keys_get_groq(key, sizeof(key))) {
+    if (keys_len(KEY_CLAUDE, NULL) == 0) {
+        /* Don't spend a Groq request on words Claude can't answer. */
+        emit(CLAUDE_EVT_PLATE,
+             answer_plate("No Claude key saved. Type key claude and the key into the console.", "Setup"), NULL);
+        return NULL;
+    }
+    char key[KEYS_MAX + 1];
+    if (keys_get(KEY_GROQ, key, sizeof(key)) == KEY_SRC_NONE) {
         emit(CLAUDE_EVT_PLATE,
              answer_plate("No Groq key saved. Type key groq and the key into the console.", "Setup"), NULL);
         return NULL;
@@ -274,9 +289,8 @@ static void worker(void *arg)
     }
 }
 
-esp_err_t claude_start(const char *api_key)
+esp_err_t claude_start(void)
 {
-    strlcpy(s_key, api_key, sizeof(s_key));
     s_in = xQueueCreate(1, sizeof(job_t));
     s_out = xQueueCreate(4, sizeof(claude_evt_t));
     return xTaskCreate(worker, "claude", 12288, NULL, 4, NULL) == pdPASS ? ESP_OK : ESP_FAIL;
