@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Tessera Setup</title>
+<style>
+:root { --bg:#000; --fg:#f2eee8; --dim:#8a837b; --rule:#2a2622; --surface:#0e0d0c; --accent:#ff5a1f; --ok:#7bc47f; --bad:#ff6b5a;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace; --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 var(--sans); -webkit-text-size-adjust: 100%; }
+main { max-width: 560px; margin: 0 auto; padding: 24px 16px 48px; display: grid; gap: 20px; }
+.mark { display: flex; align-items: center; gap: 10px; font: 600 13px/1 var(--mono); letter-spacing: .18em; }
+.mark i { width: 11px; height: 11px; background: var(--accent); display: inline-block; }
+h1 { font: 700 26px/1.15 var(--mono); margin: 0; }
+p { margin: 0; color: var(--dim); }
+button { font: 600 14px/1 var(--mono); color: var(--fg); background: var(--surface); border: 1px solid var(--rule); padding: 13px 14px; border-radius: 0; cursor: pointer; }
+button:disabled { opacity: .4; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #0a0908; }
+button.quiet { background: transparent; color: var(--dim); }
+.panel { border: 1px solid var(--rule); }
+.row { display: grid; gap: 10px; padding: 16px; }
+.row + .row { border-top: 1px solid var(--rule); }
+.head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.head b { font: 600 15px/1.3 var(--mono); }
+.state { font: 500 12px/1.3 var(--mono); color: var(--dim); }
+.state.tessera { color: var(--ok); } .state.missing { color: var(--bad); }
+.box { display: flex; border: 1px solid var(--rule); background: var(--surface); }
+.box input { flex: 1; min-width: 0; background: transparent; border: 0; color: var(--fg); font: 16px/1.4 var(--mono); padding: 12px; }
+.box .eye { border: 0; border-left: 1px solid var(--rule); font-weight: 500; color: var(--dim); }
+.acts { display: flex; gap: 8px; }
+.acts .save { flex: 1; }
+.hint { font: 12px/1.4 var(--mono); color: var(--dim); min-height: 1.4em; }
+.hint.bad { color: var(--bad); }
+.msg { border: 1px solid var(--rule); background: var(--surface); padding: 12px 14px; font: 13px/1.6 var(--mono); min-height: 3.2em; }
+.msg.e { color: var(--bad); }
+.note { border: 1px solid var(--rule); padding: 14px 16px; display: grid; gap: 6px; font-size: 14px; }
+.note ul { margin: 0; padding-left: 18px; color: var(--dim); display: grid; gap: 4px; }
+</style>
+</head>
+<body>
+<main>
+  <span class="mark"><i aria-hidden="true"></i>TESSERA</span>
+  <div>
+    <h1>Setup</h1>
+    <p style="margin-top:8px">Wi-Fi and API keys for this board, over its private setup hotspot. Check what you type with Show before you save.</p>
+  </div>
+
+  <section class="panel" aria-label="Settings">
+    <div class="row" data-id="wifi_name">
+      <div class="head"><b>Wi-Fi name</b><span class="state" data-state>…</span></div>
+      <div class="box"><input type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="32" placeholder="Network name" aria-label="Wi-Fi name"></div>
+      <div class="acts"><button class="save" type="button" disabled>Save</button><button class="quiet clear" type="button">Clear</button></div>
+      <div class="hint" data-hint></div>
+    </div>
+    <div class="row" data-id="wifi_pass">
+      <div class="head"><b>Wi-Fi password</b><span class="state" data-state>…</span></div>
+      <div class="box"><input type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="63" placeholder="8 to 63 characters" aria-label="Wi-Fi password"><button class="eye" type="button" aria-pressed="false">Show</button></div>
+      <div class="acts"><button class="save" type="button" disabled>Save</button><button class="quiet clear" type="button">Clear</button></div>
+      <div class="hint" data-hint></div>
+    </div>
+    <div class="row" data-id="claude">
+      <div class="head"><b>Claude API key</b><span class="state" data-state>…</span></div>
+      <div class="box"><input type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="300" placeholder="sk-ant-…" aria-label="Claude API key"><button class="eye" type="button" aria-pressed="false">Show</button></div>
+      <div class="acts"><button class="save" type="button" disabled>Save</button><button class="quiet clear" type="button">Clear</button></div>
+      <div class="hint" data-hint></div>
+    </div>
+    <div class="row" data-id="groq">
+      <div class="head"><b>Groq API key</b><span class="state" data-state>…</span></div>
+      <div class="box"><input type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="200" placeholder="gsk_…" aria-label="Groq API key"><button class="eye" type="button" aria-pressed="false">Show</button></div>
+      <div class="acts"><button class="save" type="button" disabled>Save</button><button class="quiet clear" type="button">Clear</button></div>
+      <div class="hint" data-hint></div>
+    </div>
+  </section>
+
+  <div class="msg" id="msg" aria-live="polite">Loading the board's settings…</div>
+
+  <button class="primary" id="done" type="button">Done: close the setup hotspot</button>
+
+  <section class="note">
+    <b style="font-family:var(--mono);font-size:13px">How this page handles your keys</b>
+    <ul>
+      <li>It comes from the board itself, over a hotspot only this phone could join, with a password that was shown on the board's screen.</li>
+      <li>It can't load or send anything anywhere except back to the board.</li>
+      <li>It never stores a value; each field empties after Save. The board answers only "saved", "missing" or "cleared" and a length.</li>
+      <li>Wi-Fi changes take effect when you tap Done, so this page isn't cut off halfway.</li>
+      <li>The hotspot switches itself off after 5 minutes.</li>
+    </ul>
+  </section>
+</main>
+<script>
+(function () {
+  "use strict";
+  var BASE = location.pathname.replace(/\/+$/, "");   /* /s/<token>: never stored or sent anywhere else */
+  var RULES = {
+    wifi_name: { min: 1, max: 32 }, wifi_pass: { min: 8, max: 63 },
+    claude: { min: 20, max: 300, prefix: "sk-ant-", token: true }, groq: { min: 20, max: 200, prefix: "gsk_", token: true }
+  };
+  var ended = false;
+  function $(id) { return document.getElementById(id); }
+  function say(t, bad) { var m = $("msg"); m.textContent = t; m.className = "msg" + (bad ? " e" : ""); }
+  function clean(id, v) { v = v.replace(/[\r\n]+/g, ""); return RULES[id].token ? v.trim() : v; }
+  function check(id, v) {
+    var r = RULES[id];
+    if (!v) return "";
+    if (/[\x00-\x1f\x7f]/.test(v)) return "One line only.";
+    if (v.length < r.min) return "Too short: at least " + r.min + " characters (" + v.length + " now).";
+    if (v.length > r.max) return "Too long: at most " + r.max + " characters.";
+    if (r.prefix && v.indexOf(r.prefix) !== 0) return "Should start with " + r.prefix;
+    if (r.token && !/^[A-Za-z0-9_-]+$/.test(v)) return "Letters, digits, - and _ only.";
+    return null;
+  }
+  function update(row) {
+    var id = row.dataset.id, v = clean(id, row.querySelector("input").value), m = check(id, v), h = row.querySelector("[data-hint]");
+    h.textContent = m || (v ? v.length + " characters, ready to save" : "");
+    h.classList.toggle("bad", !!m);
+    row.querySelector(".save").disabled = ended || !(v && m === null);
+  }
+  function api(path, body) {
+    var opt = body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {};
+    opt.cache = "no-store"; opt.credentials = "omit";
+    return fetch(BASE + path, opt).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); });
+  }
+  function refresh() {
+    return api("/status").then(function (list) {
+      list.forEach(function (s) {
+        var el = document.querySelector('.row[data-id="' + s.id + '"] [data-state]');
+        if (!el) return;
+        el.textContent = s.state === "missing" ? "missing" : s.state + " (" + s.len + " chars)";
+        el.className = "state" + (s.state === "saved in tessera" ? " tessera" : s.state === "missing" ? " missing" : "");
+      });
+    });
+  }
+  function lost() { say("Lost the connection to the board. The setup hotspot may have closed; open setup on the board again.", true); }
+  document.querySelectorAll(".row").forEach(function (row) {
+    var id = row.dataset.id, input = row.querySelector("input"), eye = row.querySelector(".eye");
+    input.addEventListener("input", function () { update(row); });
+    if (eye) eye.addEventListener("click", function () {
+      var show = input.type === "password";
+      input.type = show ? "text" : "password"; eye.textContent = show ? "Hide" : "Show"; eye.setAttribute("aria-pressed", String(show));
+    });
+    row.querySelector(".save").addEventListener("click", function () {
+      var v = clean(id, input.value);
+      if (check(id, v) !== null) return;
+      input.value = ""; if (eye && input.type === "text") eye.click(); update(row);
+      api("/save", { setting: id, value: v }).then(function (r) { v = ""; say(r.message, !r.ok); return refresh(); }).catch(lost);
+    });
+    row.querySelector(".clear").addEventListener("click", function () {
+      if (!confirm("Clear this setting from Tessera? The board falls back to what ESP-Claw saved, if anything.")) return;
+      api("/save", { setting: id, clear: true }).then(function (r) { say(r.message, !r.ok); return refresh(); }).catch(lost);
+    });
+    update(row);
+  });
+  $("done").addEventListener("click", function () {
+    api("/done", {}).then(function () {
+      ended = true;
+      document.querySelectorAll("input, button").forEach(function (b) { b.disabled = true; });
+      say("Setup finished. The hotspot is closing; your phone will go back to its usual network.");
+    }).catch(lost);
+  });
+  refresh().then(function () { say("Ready. Save only what you want to change."); }).catch(lost);
+})();
+</script>
+</body>
+</html>

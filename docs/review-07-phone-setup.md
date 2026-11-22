@@ -1,6 +1,6 @@
 # Review 07: setup from a phone, through a private hotspot
 
-**Status:** draft 2026-11-22, waiting for approval. Nothing built yet.
+**Status:** approved 2026-11-22 (long press on the ring confirmed), built and audited (below). Not flashed yet.
 **Build:** step 06 plus phone setup. The board can open its own short-lived Wi-Fi hotspot, shown as a QR
 code on its screen, so a phone can set Wi-Fi and keys without a computer. Issue
 [#17](https://github.com/SarkarShubhdeep/tessera/issues/17). The USB setup page
@@ -28,8 +28,7 @@ Tessera does none of that:
 ## How it works
 
 1. **You open it on the board.** A long press (2 s) on the ring screen shows a **Setup** plate. Its
-   **Start** choice starts setup; nothing radio-related happens before that. *(Open question for the owner:
-   is a long press on the ring the right gesture?)*
+   **Start** choice starts setup; nothing radio-related happens before that.
 2. **The board starts a private hotspot** next to its normal Wi-Fi connection (the radio's
    station + access-point mode). The board stays connected to your home network while setup runs.
    - Name: `Tessera-XXXX` (the last four hex digits of the board's MAC address).
@@ -122,3 +121,34 @@ value.
 
 **Stop rule unchanged:** any buzz, any sound from the speaker, or a mismatched pin means hold POWER and
 restore.
+
+## Build audit (2026-11-22)
+
+- Builds with no warnings (firmware and simulator, new files recompiled to check). App 1.80 MB
+  (`0x1cd060`), in the 8 MB `main_app` slot (the usual `vibe_mode` size warning; nothing written there).
+  QR codes are on in LVGL (`CONFIG_LV_USE_QRCODE`).
+- **Changed from the plan: the address check moved earlier.** The web server answers some requests
+  itself before any handler runs, for example "method not allowed". So the hotspot-address check now also
+  runs when a connection is **accepted** (`open_fn`): a connection that arrives over the home network is
+  closed before anything is read or answered. Every request is checked again in the handler. What's left:
+  during the 5 minutes, a port scan from the home network would see port 80 accept a connection and close
+  it straight away. It can't get a single byte back.
+- **Secrets:** the hotspot password and the link token are made from the hardware random number
+  generator. They're used only for the hotspot settings, the QR text and the token comparison (constant
+  time), and they're wiped when setup ends. No log line contains either. The setup log lines are
+  `hotspot on (Tessera-XXXX, 5 min)`, `a phone joined the hotspot`, `page opened`,
+  `phone: <setting> saved (N chars)`, `the phone left the hotspot` and `hotspot off (<why>)`.
+- **Lifetime:** the web server is started and stopped only by the setup task: on start, and on done,
+  cancel, time-out or a failed start. A failed start goes through the same shutdown.
+- **Wi-Fi changes from the phone** are applied when setup ends, so the phone isn't dropped mid-save.
+- **Storage:** unchanged. Writes only in `keys.c`, namespace `tessera`, and `nvs_erase_key` is the only
+  erase linked.
+- **Phone page**, tested in Chrome at 390 px against a stand-in board at `192.168.4.1`:
+  - A request to the web was blocked by its policy, and nothing outside the board was requested.
+  - What it sent: the setting name and value, then Done. The Claude field emptied after Save, and a
+    trailing newline was removed.
+  - A too-short Wi-Fi password couldn't be saved, and the page has no sideways scroll.
+- **Simulator:** snapshots of the plate in
+  [design/gallery/setup-intro.png](../design/gallery/setup-intro.png) and
+  [setup-join.png](../design/gallery/setup-join.png) (made-up code).
+- **Pins:** no new pin calls.

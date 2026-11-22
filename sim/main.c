@@ -16,6 +16,7 @@
 #include "cJSON.h"
 #include "lvgl.h"
 #include "ui/plates.h"
+#include "ui/setup.h"
 #include "ui/ui.h"
 
 #define SCREEN_W 480
@@ -179,6 +180,21 @@ int main(int argc, char **argv)
             }
         }
         ui_set_caption("");
+        /* The Setup plate (review 07), with made-up codes. */
+        ui_setup_open();
+        pump(300);
+        if (snap(disp, snap_dir, "setup-intro")) {
+            return 1;
+        }
+        ui_setup_show_qr("Scan to join", "WIFI:T:WPA;S:Tessera-0000;P:example-only-0000;;",
+                         "Tessera-0000 \u00b7 private, for this setup only");
+        ui_setup_set_time(287);
+        pump(300);
+        if (snap(disp, snap_dir, "setup-join")) {
+            return 1;
+        }
+        ui_setup_close();
+        pump(100);
         for (int i = 0; i < nfiles; i++) {
             char *json = read_file(files[i]);
             cJSON *spec = json ? cJSON_Parse(json) : NULL;
