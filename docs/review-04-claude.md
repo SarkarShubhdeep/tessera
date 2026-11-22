@@ -1,6 +1,6 @@
 # Review 04: Wi-Fi and Claude (text first)
 
-**Status:** built and audited; waiting for approval. Nothing has been flashed.
+**Status:** approved 2026-11-22, flashed (app slot only) and working (results at the end).
 **Build:** step 03c plus the network. A question typed into the USB console goes to Claude; Claude
 answers by choosing a plate, and the device draws it. Voice comes in a later step: the Claude API takes
 text, images and documents, not audio, so speech needs its own speech-to-text step first.
@@ -27,8 +27,8 @@ Going back to ESP-Claw later finds its settings exactly as it left them.
 
 ## Secrets never leave the device except to Anthropic
 
-- The **API key** is sent only in the `x-api-key` header, over HTTPS (certificate-checked with ESP-IDF's
-  bundle), to `api.anthropic.com`. If the saved key isn't a Claude key (it doesn't start with `sk-ant-`),
+- The **API key** is sent only in the `x-api-key` header, over HTTPS (certificate-checked against the
+  Google Trust Services roots, see below), to `api.anthropic.com`. If the saved key isn't a Claude key (it doesn't start with `sk-ant-`),
   Tessera doesn't send it anywhere.
 - The **log** says whether each setting was found and how long it is, never its value. The Wi-Fi network
   name isn't printed either. Safe to print: the saved model name and backend type.
@@ -68,3 +68,24 @@ then a test question sent from the Mac and a plate on screen. Stop rule unchange
 - No log line prints the key, the Wi-Fi password or the network name (checked every log call). The
   maximum compiled log level is INFO, so the HTTP client's header dumps (DEBUG) aren't in the build.
 - The key is used in exactly one place: the `x-api-key` header to `https://api.anthropic.com/v1/messages`.
+
+## On the board (2026-11-22)
+
+**First flash: TLS failed, and the log showed the Wi-Fi network name.**
+- ESP-IDF's certificate bundle rejected `api.anthropic.com`: the server sends GTS Root R4 cross-signed by
+  GlobalSign Root CA, a root the bundle has dropped, and the bundle's check follows the chain to it. The
+  connection now trusts the four GTS roots (`firmware/main/certs/anthropic_roots.pem`, copied from
+  ESP-IDF's Mozilla list), so the chain ends at GTS Root R4.
+- The audit missed one log line: ESP-IDF's Wi-Fi library prints the network name at INFO when it
+  connects. Its log level is now WARN; the captured log was deleted.
+
+**Second flash: works.** Settings found (no values printed), Wi-Fi up at −71 dBm in about 3.5 s, and the
+network name appears nowhere in the log.
+
+| Question | Reply | Tokens in / out | Plate |
+|---|---|---|---|
+| "What is 17 times 23?" | 2.1 s, HTTP 200, `tool_use` | 958 / 94 | number |
+| "Give me a short plan for a calm Sunday morning" | 2.8 s, HTTP 200, `tool_use` | 966 / 196 | list |
+
+Also in this build: the start screen (wordmark, version, work-in-progress mark), Wi-Fi brought up in its
+own task so the screen keeps running, and the flash tool now resets the board itself after writing.
