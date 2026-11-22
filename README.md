@@ -95,3 +95,7 @@ Swipe left (drag or arrow keys) through the example plates in `sim/plates/`; cli
 ## License
 
 Apache-2.0. Builds on ESP-Claw (Apache-2.0) and LVGL (MIT). See [NOTICE](NOTICE).
+
+## Contributing
+
+Every change goes issue → branch → pull request: see [CONTRIBUTING.md](CONTRIBUTING.md).
