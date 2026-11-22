@@ -6,6 +6,9 @@ This project includes or builds on:
 - ESP-Claw (https://github.com/espressif/esp-claw), Copyright Espressif Systems (Shanghai) CO LTD,
   Apache License 2.0. Included as a git submodule in third_party/esp-claw.
 - LVGL (https://github.com/lvgl/lvgl), MIT License. Included as a git submodule in third_party/lvgl.
+- cJSON (https://github.com/DaveGamble/cJSON), MIT License. Git submodule in third_party/cJSON.
+- Geist Pixel and Geist Mono (https://github.com/vercel/geist-font), SIL Open Font License 1.1.
+  TTFs in fonts/ with their licenses; ui/fonts/*.c are bitmap fonts generated from them.
 - firmware/boards/esp_mosaico/: adapted from Espressif's esp_boards component (esp_mosaico board,
   version 0.7.3). usb_hs_console/ is Espressif code under Apache-2.0; parts of setup_device.c are
   adapted from Espressif code under LicenseRef-Espressif-Modified-MIT.
