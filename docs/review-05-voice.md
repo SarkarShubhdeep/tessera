@@ -173,7 +173,7 @@ entered the key in their own Terminal; it was never seen by Claude Code.
 
 | Question (as Groq heard it) | Audio | Groq | Claude | Release to plate | Plate |
 |---|---|---|---|---|---|
-| "What is the temperature in Fort Wayne right now?" | 3.8 s | 9.6 s | 3.3 s | 12.9 s | answer (no live data) |
+| "What is the temperature in [a city] right now?" | 3.8 s | 9.6 s | 3.3 s | 12.9 s | answer (no live data) |
 | "What are your features? Can you give me top two of them to try out now?" | 6.4 s | 2.5 s | 2.3 s | 4.9 s | list |
 
 - The first request after boot was slow at Groq (9.6 s); the next was 2.5 s. Likely the first TLS

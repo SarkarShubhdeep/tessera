@@ -1,0 +1,108 @@
+# Review 08: live data (a real clock, your place, and web search)
+
+**Status:** draft 2026-11-22, waiting for approval. Nothing built yet.
+**Build:** step 07 plus live data. Today Claude can't answer "what's the weather" or "what time is it": it
+has no web access and is never told the date, and the ring's clock is the simulator's fake 09:41. This
+step sets the board's clock, tells Claude the local time and (if you set one) your place, and lets Claude
+search the web. Issue [#19](https://github.com/SarkarShubhdeep/tessera/issues/19).
+
+## Pins
+
+**No new pins.** Everything here is software and network.
+
+## 1. The clock
+
+- After Wi-Fi connects, the board sets its clock with **SNTP** (ESP-IDF's `esp_sntp`) from
+  `pool.ntp.org`, and checks it again every few hours.
+- The ring's clock shows the real local time. Until the first sync it shows `--:--`.
+- **Time zone:** a new setting (below). With none set, the clock shows UTC and says so to Claude.
+- SNTP is plain, unauthenticated UDP. A network attacker could feed the board a wrong time. The worst
+  outcome is a wrong clock and a wrong "today" for Claude; it can't break HTTPS, because the certificate
+  check would then fail and say so. The certificate check needs a roughly right clock anyway, so the
+  board waits for the first sync before its first question, at most 10 s.
+
+## 2. Time zone and place: two new settings
+
+| Setting | Example | Used for | Required |
+|---|---|---|---|
+| Time zone | `America/New_York` | The clock; "it's 9:41 on Sunday" for Claude | No (UTC without it) |
+| Place | a city and region, as you'd say it | "the weather here", "what's open near me" | No |
+
+- Both go on **both setup pages** (USB and phone), with the same Save and Clear.
+- **Time zone:** the page offers the zone your computer or phone is in (the browser knows it) and you
+  confirm it. The board needs it in POSIX form (`EST5EDT,M3.2.0,M11.1.0`); the page converts the common
+  zones with a small built-in table, and has a field for typing a POSIX string for anything else.
+- Stored in Tessera's namespace like the keys (`tz`, `place`). Both are personal (they say roughly where
+  you live), so the log treats them like keys: saved, missing or cleared, and a length. Never the
+  value. The setup pages show them back to you, because they aren't secrets from you.
+- The place is sent to Anthropic with each question, as part of the instructions to Claude. That's the
+  point of it; leave it empty if you'd rather not.
+
+## 3. Claude: the time, the place, and web search
+
+**Every question** now starts Claude's instructions with a line like:
+`Now: Sunday 22 November 2026, 13:52 (America/New_York). The user is in <place>.`
+
+**Web search:** Anthropic's server-side tool, `{"type": "web_search_20260209", "name": "web_search",
+"max_uses": 3}`.
+- Anthropic runs the search and filters the results itself ("dynamic filtering"); the board only sends the
+  question and gets the final answer back. No search keys, nothing new to set up.
+- The system prompt says: search only when the answer needs live or recent facts (weather, news,
+  scores, prices, opening hours), and put the source's name in the plate's `source` field.
+- **At most 3 searches per question**, to keep the time and cost down.
+- Long searches can come back with `stop_reason: "pause_turn"`. The board sends the conversation back
+  as is to let the search finish: at most 2 times, then it shows what it has.
+- Responses with search results are bigger, so the reply buffer goes from 64 KB to 512 KB, in PSRAM,
+  allocated once. The timeout goes from 90 s to 120 s.
+
+## Cost and speed
+
+- Web search is billed **per search** by Anthropic, on top of tokens: about $10 per 1,000 searches when
+  checked (2026-11). Check the current price in the Claude Console. With 3 searches at most per question, a
+  question that searches costs at most about 3 cents, plus a few more input tokens.
+- Questions that don't need the web don't search and cost the same as today, plus about 30 tokens for the
+  time and place line.
+- A question that searches will take longer: likely 5–15 s from letting go of the button to the plate.
+  To measure on the board.
+
+## What leaves the board
+
+| What | Goes to | New? |
+|---|---|---|
+| The time request (SNTP) | `pool.ntp.org` | **New.** Says only that a device at your address wants the time |
+| The place, the local time and zone | Anthropic, with each question | **New** |
+| Web searches | Run by Anthropic, not the board. The board never contacts the sites | **New** (on Anthropic's side) |
+| Questions, recordings, keys | As before (Anthropic, Groq) | No |
+
+## Code changes
+
+| File | Change |
+|---|---|
+| `main/clock.c` (new) | SNTP start after Wi-Fi, time zone from settings, `clock_now()` for the prompt, "synced" flag |
+| `main/keys.c` | Two more settings, `tz` (POSIX string, 3–60 chars) and `place` (1–80 chars, one line) |
+| `main/claude.c` | The time/place line, the web search tool, `pause_turn` resume, 512 KB buffer, 120 s timeout |
+| `main/main.c` | `key status` lists the two new settings |
+| `main/setup_web.c`, `setup_page.html` | Time zone and place on the phone page |
+| `tools/setup.html` | Time zone and place on the USB page |
+| `ui/ui.c` | The ring's clock reads a time callback from the platform: the board's clock on the device, the Mac's in the simulator, `--:--` until synced |
+
+## Checks
+
+**Before (no board needed):**
+- Builds with no warnings; the simulator shows the Mac's real time.
+- No log line prints the time zone or the place. All writes still go through `keys.c`, namespace
+  `tessera`.
+- The request JSON has the web search tool and the time line (checked in a host test, not by printing it
+  on the board).
+- The time zone table on the pages converts a few known zones correctly (New York, Los Angeles, London,
+  Kolkata, Tokyo).
+
+**On the board:** app slot only, backup ready.
+1. After start-up, the ring shows the right local time (after you set the time zone).
+2. "What time is it?" and "What's today's date?": correct, no search.
+3. "What's the weather here right now?" with a place set: a plate with the weather and a source. The
+   log shows the search count and the times.
+4. A question that needs no search: no search, about the same speed as before.
+
+**Stop rule unchanged:** any buzz, any sound from the speaker, or a mismatched pin means hold POWER and
+restore.
