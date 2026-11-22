@@ -160,6 +160,7 @@ static frame_t frame(lv_obj_t *parent, const char *left, const char *right, bool
     f.head_right = label_caps(right_box, right ? right : "", TS_FONT_HEAD, live ? TS_ACCENT : TS_DIM);
 
     f.body = box(f.root);
+    lv_obj_remove_flag(f.body, LV_OBJ_FLAG_SCROLLABLE);   /* a plate is one screen: never scroll */
     lv_obj_set_width(f.body, lv_pct(100));
     lv_obj_set_flex_grow(f.body, 1);
     lv_obj_set_flex_flow(f.body, LV_FLEX_FLOW_COLUMN);
@@ -331,14 +332,19 @@ static lv_obj_t *plate_list(lv_obj_t *parent, const cJSON *p)
             what = it->valuestring;
         }
         lv_obj_t *r = row(f.body, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
-        lv_obj_set_style_pad_ver(r, TS_PX(TS_ROW_PAD), 0);
+        /* Five rows need slightly tighter spacing to fit the body; up to four keep the full pad. */
+        lv_obj_set_style_pad_ver(r, TS_PX(shown >= LIST_MAX ? 11 : TS_ROW_PAD), 0);
         lv_obj_set_style_pad_column(r, TS_PX(TS_GAP_S), 0);
         rule(r, LV_BORDER_SIDE_BOTTOM);
+        /* Each row is one line: a fixed height makes long text end in "..." instead of wrapping. */
         lv_obj_t *w = text(r, when, TS_FONT_SUB, i == now ? TS_ACCENT : TS_DIM);
         lv_obj_set_width(w, TS_PX(110));
+        lv_label_set_long_mode(w, LV_LABEL_LONG_DOT);
+        lv_obj_set_height(w, lv_font_get_line_height(TS_FONT_SUB));
         lv_obj_t *t = text(r, what, TS_FONT_ROW, TS_INK);
         lv_obj_set_flex_grow(t, 1);
         lv_label_set_long_mode(t, LV_LABEL_LONG_DOT);
+        lv_obj_set_height(t, lv_font_get_line_height(TS_FONT_ROW));
     }
     footer(&f, "Tap · open", n > shown ? "More · swipe" : "Swipe · next");
     return f.root;

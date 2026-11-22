@@ -33,7 +33,8 @@ static const char *SYSTEM_PROMPT =
     "Plates and their fields:\n"
     "- number: value (number or short string), unit, label, detail, updated. For one figure.\n"
     "- answer: text (at most about 120 characters; shorter is better), source. For a short answer.\n"
-    "- list: title, items (up to 5 pairs of [time or short tag, text]), now (index of the current item or -1).\n"
+    "- list: title, items (up to 5 pairs of [time or tag of at most 5 characters, text of at most 16 "
+    "characters]), now (index of the current item or -1). Each item is one short line.\n"
     "- choice: question, options (2 to 4 short strings), selected (-1 if none). When the user must pick.\n"
     "- gauge: label, value, min, max, unit, detail. For a value in a known range.\n"
     "- timer: label, seconds. When asked to time something.\n"
@@ -148,6 +149,11 @@ static cJSON *plate_from_response(int status, const char *body)
             }
             if (!plate) {
                 plate = answer_plate(text && text[0] ? text : "No answer came back.", "Claude");
+            }
+            char *spec = cJSON_PrintUnformatted(plate);   /* the plate content only: no secrets */
+            if (spec) {
+                ESP_LOGI(TAG, "plate: %s", spec);
+                cJSON_free(spec);
             }
         }
     }
