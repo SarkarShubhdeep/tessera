@@ -218,3 +218,12 @@ Flashed (app slot only), verified. Three spoken questions, within a minute:
   single current figure: the sites disagreed. Claude said so and pointed to a weather service instead of
   guessing. Web search is the wrong tool for live readings. Next: a weather tool backed by a weather API
   (for example Open-Meteo: free, no key), in its own issue and review.
+
+### Web fetch removed (2026-11-22)
+
+The owner chose to finish this step without web fetch: 35 s and a large bill per live-weather question,
+and still no current figure. The request now has `show_plate` and `web_search` only. The cached prefix is
+still byte-for-byte the same across questions (checked on the Mac). Current weather moves to issue
+[#21](https://github.com/SarkarShubhdeep/tessera/issues/21), a `get_weather` tool backed by a weather API.
+Board sensors and outputs as tools for Claude are issue
+[#22](https://github.com/SarkarShubhdeep/tessera/issues/22).

@@ -31,8 +31,6 @@ extern const char ROOTS_PEM[] asm("_binary_anthropic_roots_pem_start");
 #define BODY_MAX   (512 * 1024)   /* web search replies are bigger (review 08); PSRAM, allocated once */
 #define RESUMES    2              /* pause_turn: times to let a long search finish */
 #define SEARCHES   3              /* web searches per question at most */
-#define FETCHES    1              /* pages opened per question at most */
-#define FETCH_TOKENS 6000         /* cap on a fetched page's text */
 
 static const char *SYSTEM_PROMPT =
     "You are Tessera, the assistant on a small square 480x480 screen with one button. "
@@ -51,9 +49,8 @@ static const char *SYSTEM_PROMPT =
     "(weather, news, scores, prices, opening hours, events), not for things you already know. Search as "
     "little as you can. When you used a search, put the source's name (the site) in the plate's source or "
     "detail field. If the user's place is given, \"here\" and \"near me\" mean that place.\n"
-    "For current conditions (the weather now, live scores, a price now), if the search results don't give the "
-    "current figure, open the most relevant result with web_fetch to read it. Never present a forecast as the "
-    "current value; if you can't find the current figure, say so and give what you found.";
+    "Never present a forecast as the current value: if the search results don't give the current figure, say "
+    "so and give what you found.";
 
 static const char *TOOL_JSON =
     "{\"name\":\"show_plate\","
@@ -128,18 +125,13 @@ static cJSON *build_request(const char *question)
     /* Tools, always in this order. */
     cJSON *tools = cJSON_AddArrayToObject(req, "tools");
     cJSON_AddItemToArray(tools, cJSON_Parse(TOOL_JSON));
-    /* Anthropic's server-side web tools: Anthropic searches and fetches; the board never visits a site. */
+    /* Anthropic's server-side web search: Anthropic searches; the board never visits a site. Web fetch was tried
+     * and removed (review 08): 35 s per live-weather question and still no single current figure. */
     cJSON *ws = cJSON_CreateObject();
     cJSON_AddStringToObject(ws, "type", "web_search_20260209");
     cJSON_AddStringToObject(ws, "name", "web_search");
     cJSON_AddNumberToObject(ws, "max_uses", SEARCHES);
     cJSON_AddItemToArray(tools, ws);
-    cJSON *wf = cJSON_CreateObject();
-    cJSON_AddStringToObject(wf, "type", "web_fetch_20260209");
-    cJSON_AddStringToObject(wf, "name", "web_fetch");
-    cJSON_AddNumberToObject(wf, "max_uses", FETCHES);
-    cJSON_AddNumberToObject(wf, "max_content_tokens", FETCH_TOKENS);
-    cJSON_AddItemToArray(tools, wf);
 
     /* System: the fixed part (cached), then the time and place (not cached: they change). The place is
      * personal: it goes to Anthropic in the request and is never logged. */
