@@ -187,7 +187,7 @@ static void ai_button_poll(lv_timer_t *t)
 static const char *SETUP = "setup";
 
 static const char *const KEY_NAME[KEY_COUNT] = {"wifi name", "wifi password", "claude key", "groq key",
-                                                "time zone", "place"};
+                                                "time zone", "place", "place location"};
 static const char *const SRC_NAME[] = {"missing", "saved in tessera", "from ESP-Claw"};
 
 static void print_status(void)

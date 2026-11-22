@@ -33,6 +33,7 @@ static const spec_t SPEC[KEY_COUNT] = {
     [KEY_GROQ] = {"groq_key", NULL, "gsk_", 20, 200, true},
     [KEY_TZ] = {"tz", "time_timezone", NULL, 3, 80, false},
     [KEY_PLACE] = {"place", NULL, NULL, 1, 80, false},
+    [KEY_GEO] = {"geo", NULL, NULL, 5, 200, false},
 };
 
 void keys_log_stats(const char *when)
@@ -118,6 +119,9 @@ esp_err_t keys_set(key_id_t id, const char *value)
     if (!keys_valid(id, value)) {
         return ESP_ERR_INVALID_ARG;
     }
+    if (id == KEY_PLACE) {
+        keys_clear(KEY_GEO);   /* a new place needs a new lookup */
+    }
     keys_log_stats("before saving");
     nvs_handle_t h;
     esp_err_t err = nvs_open(NS, NVS_READWRITE, &h);
@@ -134,6 +138,9 @@ esp_err_t keys_set(key_id_t id, const char *value)
 
 esp_err_t keys_clear(key_id_t id)
 {
+    if (id == KEY_PLACE) {
+        keys_clear(KEY_GEO);   /* the location goes with the place */
+    }
     nvs_handle_t h;
     if (nvs_open(NS, NVS_READONLY, &h) != ESP_OK) {
         return ESP_OK;   /* nothing saved, nothing to clear */

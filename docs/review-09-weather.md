@@ -1,6 +1,6 @@
 # Review 09: a weather tool (Open-Meteo), not web search
 
-**Status:** draft 2026-11-22, waiting for approval. Nothing built yet.
+**Status:** approved 2026-11-22, built and audited (below). Not flashed yet.
 **Build:** step 08 plus a weather tool. In review 08, asked for the current temperature, Claude made two web
 searches and fetched one page. It took 35 s and still found no single current figure. This step gives
 Claude a `get_weather` tool: the board asks a weather service directly and hands Claude exact numbers.
@@ -109,3 +109,29 @@ wrong match shows on the plate ("Springfield, Illinois?") instead of hiding.
 
 **Stop rule unchanged:** any buzz, any sound from the speaker, or a mismatched pin means hold POWER and
 restore.
+
+## Build audit (2026-11-22)
+
+- Builds with no warnings. App 1.83 MB (`0x1d4700`).
+- **Certificates:** `certs/weather_roots.pem` holds ISRG Root X1 and X2, copied from ESP-IDF's Mozilla list.
+  With only that file, `openssl s_client -CAfile` verifies both `api.open-meteo.com` and
+  `geocoding-api.open-meteo.com`. It's referenced only in `weather.c`.
+- **Parsing, tested on the Mac** (`weather_parse.c` has no ESP-IDF in it) against saved Open-Meteo
+  responses for neutral places:
+  - "Springfield, Illinois" picks Illinois out of 10 Springfields, and "Missouri" picks Missouri. With no
+    region, it takes the geocoder's first result. A name with no results returns not found.
+  - The saved form round-trips (`52.5244,13.4105,DE|Berlin|State of Berlin|Germany`).
+  - URL encoding handles accents and `&`.
+  - The tool result for Berlin is 515 bytes, in °C, with now, today and tomorrow, and `"source":"Open-Meteo"`.
+    Unreadable responses give no result. WMO codes map to words.
+- **Request check on the Mac:** tools in a fixed order (`show_plate`, `get_weather`, `web_search`).
+  `get_weather` has one optional `place` field. The weather line is in the prompt, and the cached prefix is
+  still identical between questions.
+- **Tool-use loop:** at most 3 requests per question, counting `get_weather` answers and `pause_turn`
+  resumes. If Claude made a plate in the same reply, the plate wins.
+- **Logs:** `weather: place lookup: found/not found in N ms (HTTP n)` and
+  `weather: forecast: ok/failed in N ms (HTTP n)`. No place name, matched name or coordinates. The
+  tool result isn't logged. As before, the question and the plate are, and either may name a place.
+- **Storage:** writes only in `keys.c`. `geo` is written once by `weather.c` (through `keys_set`) after the
+  first lookup, and cleared by `keys.c` whenever the place is saved or cleared.
+- **Pins:** none.
