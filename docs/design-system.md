@@ -75,18 +75,24 @@ The JSON is the `show_plate` tool input. Examples: [`sim/plates/`](../sim/plates
 **Fallback:** an unknown type or a malformed plate becomes an `answer` plate showing its `text` (or
 "This plate type isn't supported yet."), with the type name in the header. The screen is never blank.
 
-## The orb
+## Presence: the ring
 
-![The orb states](../design/gallery/orb-sheet.png)
+![The ring in its four states](../design/screenshots/orb-states.png)
 
-| State | Motion |
-|---|---|
-| Idle | Breathes: size 160 → 176 over 2.4 s, ease in-out |
-| Listening | Five bars, heights 28 → 90–120, 320–480 ms, out of phase |
-| Thinking | Three dots fade 20% → 100% in turn, 420 ms |
-| Speaking | Quick pulse: 146 → 186 over 260 ms |
+One object in every state: a ring of 24 square segments (12 units wide, around a 64-unit radius).
+Only the segments' length, width and brightness change, so every state change is a smooth morph,
+not a shape swap. This follows common agent-UI practice (see decision 008).
 
-All orb motion stays inside a fixed 200 × 200 box.
+| State | Shape | Motion |
+|---|---|---|
+| Idle | Solid ring: segments widen until they touch | Breathes ±3 units over 3 s |
+| Listening | Segments open; radius 74 | Lengths follow **your** voice (microphone level), uneven like a live mic |
+| Thinking | Thin ring, radius 64 | A lit arc circles once every 1.2 s; the rest dims to 22% |
+| Speaking | Segments open; radius 70 | Lengths follow **the agent's** voice (speaker level), symmetric |
+
+Transitions ease toward each state's targets (about 70 ms time constant). On the board, listening and
+speaking read the real mic and speaker levels; the landing page uses a speech-like stand-in. The
+ring stays inside a 300 × 300 region.
 
 ## Motion
 

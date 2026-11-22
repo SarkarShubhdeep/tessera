@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>The pixel orb</title>
+<title>Presence: the ring</title>
 <script src="./support.js"></script>
 </head>
 <body>
@@ -12,128 +12,50 @@
 <style>
 body{margin:0}
 a{color:#FF5A1F}a:hover{color:#F2EEE8}
-.ts-disc{position:absolute;left:50%;top:50%;width:176px;height:176px;margin:-88px 0 0 -88px}
-.ts-px{position:absolute;width:var(--s);height:var(--s);background:var(--accent);opacity:var(--o)}
-/* Each state has its own still shape (readable without motion); motion is layered on top. */
-.s-think .ts-px{transform:translate(calc(var(--ux) * var(--sh) * (0.45 + var(--k) * 0.55)),calc(var(--uy) * var(--sh) * (0.45 + var(--k) * 0.55))) rotate(90deg) scale(.8)}
-@keyframes ts-breathe{from{transform:scale(.92)}to{transform:scale(1)}}
-@keyframes ts-twinkle{0%,88%,100%{opacity:var(--o)}93%{opacity:.12}}
-@keyframes ts-ripple{0%,60%,100%{transform:translate(0,0) scale(1)}25%{transform:translate(calc(var(--ux) * 12px),calc(var(--uy) * 12px)) scale(.7)}}
-@keyframes ts-spin{to{transform:rotate(360deg)}}
-@keyframes ts-reform{0%,30%,70%,100%{transform:translate(calc(var(--ux) * var(--sh) * (0.45 + var(--k) * 0.55)),calc(var(--uy) * var(--sh) * (0.45 + var(--k) * 0.55))) rotate(90deg) scale(.8)}48%,52%{transform:translate(0,0) rotate(0) scale(1)}}
-@keyframes ts-beat{from{transform:scaleY(.35)}to{transform:scaleY(1)}}
-.s-idle .ts-disc{animation:ts-breathe calc(2.4s / var(--v)) ease-in-out infinite alternate}
-.s-idle .ts-px{animation:ts-twinkle calc(3.6s / var(--v)) linear infinite;animation-delay:calc(var(--k) * -3.6s)}
-.s-listen .ts-px{animation:ts-ripple calc(.9s / var(--v)) cubic-bezier(.16,1,.3,1) infinite;animation-delay:calc(var(--r) * 60ms / var(--v))}
-.s-think .ts-disc{animation:ts-spin calc(4.8s / var(--v)) linear infinite}
-.s-think .ts-px{animation:ts-reform calc(3.2s / var(--v)) cubic-bezier(.65,0,.35,1) infinite;animation-delay:calc(var(--k) * -.25s)}
-.ts-col{position:absolute;top:0;bottom:0;transform-origin:50% 50%}
-.s-speak .ts-col{animation:ts-beat calc(.32s / var(--v)) ease-in-out infinite alternate;animation-delay:var(--d)}
-@media (prefers-reduced-motion:reduce){.ts-disc,.ts-px,.ts-col{animation:none!important}}
 </style>
 </helmet>
-<div style="width: 2120px; height: 620px; box-sizing: border-box; padding: 40px; background: #0A0908; color: #F2EEE8; font-family: 'Geist Mono', ui-monospace, monospace; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 40px; --s: {{size}}px; --sh: {{shatter}}px; --v: {{speed}}; --accent: {{accent}};">
-  <div style="display: flex; flex-direction: column; gap: 16px;">
-    <div class="s-idle" style="position: relative; width: 480px; height: 480px; background: #000000; overflow: hidden;">
-      <span style="position: absolute; top: 40px; left: 0; right: 0; text-align: center; font-size: 24px; letter-spacing: 2px; color: #6B655E;">09:41</span>
-      <div class="ts-disc">
-        <sc-for list="{{idle}}" as="p" hint-placeholder-count="97"><span class="ts-px" style="left: {{p.x}}px; top: {{p.y}}px; --ux: {{p.ux}}; --uy: {{p.uy}}; --r: {{p.r}}; --k: {{p.k}}; --o: {{p.o}};"></span></sc-for>
+<div style="width: 2120px; height: 620px; box-sizing: border-box; padding: 40px; background: #0A0908; color: #F2EEE8; font-family: 'Geist Mono', ui-monospace, monospace; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 40px;">
+  <sc-for list="{{states}}" as="s" hint-placeholder-count="4">
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <div style="position: relative; width: 480px; height: 480px; background: #000000; overflow: hidden;">
+        <span style="position: absolute; top: 40px; left: 0; right: 0; text-align: center; font-size: 24px; letter-spacing: 2px; color: #6B655E;">09:41</span>
+        <sc-for list="{{s.segs}}" as="g" hint-placeholder-count="24"><span style="position: absolute; left: 240px; top: {{g.top}}px; width: {{g.len}}px; height: {{g.w}}px; background: {{accent}}; opacity: {{g.a}}; transform-origin: 0 50%; transform: rotate({{g.deg}}deg) translateX({{g.r}}px);"></span></sc-for>
+        <span style="position: absolute; bottom: 70px; left: 0; right: 0; text-align: center; font-size: 24px;">{{s.status}}</span>
       </div>
-      <span style="position: absolute; bottom: 70px; left: 0; right: 0; text-align: center; font-size: 24px;">Tap to talk</span>
+      <div style="display: flex; justify-content: space-between; font-size: 13px; letter-spacing: 2px; text-transform: uppercase;"><span>{{s.name}}</span><span style="color: #8D867E;">{{s.note}}</span></div>
     </div>
-    <div style="display: flex; justify-content: space-between; font-size: 13px; letter-spacing: 2px; text-transform: uppercase;"><span>Idle</span><span style="color: #8D867E;">Full disc · breathes, flickers</span></div>
-  </div>
-  <div style="display: flex; flex-direction: column; gap: 16px;">
-    <div class="s-listen" style="position: relative; width: 480px; height: 480px; background: #000000; overflow: hidden;">
-      <span style="position: absolute; top: 40px; left: 0; right: 0; text-align: center; font-size: 24px; letter-spacing: 2px; color: #6B655E;">09:41</span>
-      <div class="ts-disc">
-        <sc-for list="{{listen}}" as="p" hint-placeholder-count="97"><span class="ts-px" style="left: {{p.x}}px; top: {{p.y}}px; --ux: {{p.ux}}; --uy: {{p.uy}}; --r: {{p.r}}; --k: {{p.k}}; --o: {{p.o}};"></span></sc-for>
-      </div>
-      <span style="position: absolute; bottom: 70px; left: 0; right: 0; text-align: center; font-size: 24px;">Listening</span>
-    </div>
-    <div style="display: flex; justify-content: space-between; font-size: 13px; letter-spacing: 2px; text-transform: uppercase;"><span>Listening</span><span style="color: #8D867E;">Rings · ripple outward</span></div>
-  </div>
-  <div style="display: flex; flex-direction: column; gap: 16px;">
-    <div class="s-think" style="position: relative; width: 480px; height: 480px; background: #000000; overflow: hidden;">
-      <span style="position: absolute; top: 40px; left: 0; right: 0; text-align: center; font-size: 24px; letter-spacing: 2px; color: #6B655E;">09:41</span>
-      <div class="ts-disc">
-        <sc-for list="{{think}}" as="p" hint-placeholder-count="97"><span class="ts-px" style="left: {{p.x}}px; top: {{p.y}}px; --ux: {{p.ux}}; --uy: {{p.uy}}; --r: {{p.r}}; --k: {{p.k}}; --o: {{p.o}};"></span></sc-for>
-      </div>
-      <span style="position: absolute; bottom: 70px; left: 0; right: 0; text-align: center; font-size: 24px;">Thinking</span>
-    </div>
-    <div style="display: flex; justify-content: space-between; font-size: 13px; letter-spacing: 2px; text-transform: uppercase;"><span>Thinking</span><span style="color: #8D867E;">Shattered · revolves, reforms</span></div>
-  </div>
-  <div style="display: flex; flex-direction: column; gap: 16px;">
-    <div class="s-speak" style="position: relative; width: 480px; height: 480px; background: #000000; overflow: hidden;">
-      <span style="position: absolute; top: 40px; left: 0; right: 0; text-align: center; font-size: 24px; letter-spacing: 2px; color: #6B655E;">09:41</span>
-      <div class="ts-disc">
-        <sc-for list="{{speak}}" as="col" hint-placeholder-count="11">
-          <div class="ts-col" style="left: {{col.x}}px; width: {{col.w}}px; --d: {{col.d}};">
-            <sc-for list="{{col.px}}" as="p" hint-placeholder-count="6"><span class="ts-px" style="left: 0; top: {{p.y}}px; --o: 1;"></span></sc-for>
-          </div>
-        </sc-for>
-      </div>
-      <span style="position: absolute; bottom: 70px; left: 0; right: 0; text-align: center; font-size: 24px;">Speaking</span>
-    </div>
-    <div style="display: flex; justify-content: space-between; font-size: 13px; letter-spacing: 2px; text-transform: uppercase;"><span>Speaking</span><span style="color: #8D867E;">Equalizer · columns beat</span></div>
-  </div>
+  </sc-for>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"grid":{"editor":"enum","options":["9","11","15","21"],"default":"11","section":"Pixels"},"gap":{"editor":"int","min":0,"max":6,"step":1,"unit":"px","default":2,"section":"Pixels"},"shatter":{"editor":"range","min":10,"max":120,"step":5,"unit":"px","default":90,"section":"Motion"},"speed":{"editor":"range","min":0.5,"max":2,"step":0.1,"default":1,"section":"Motion"},"accent":{"editor":"color","options":["#FF5A1F","#F2EEE8","#FFB020","#3DDC97"],"default":"#FF5A1F","section":"Colour"},"$preview":{"width":2120,"height":620}}'>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","options":["#FF5A1F","#F2EEE8","#FFB020"],"default":"#FF5A1F"},"$preview":{"width":2120,"height":620}}'>
 class Component extends DCLogic {
   renderVals() {
-    /* A grid of square pixels across a 176 px disc, kept where each falls inside the circle.
-       ux/uy point outward from the centre; r is the ring; k is a stable per-pixel random for stagger.
-       Each state gets its own still shape: idle = full disc with dim flecks, listening = alternating
-       rings, thinking = shattered (set in CSS), speaking = equalizer columns cut to the circle. */
-    const n = parseInt(this.props.grid ?? '11', 10) || 11;
-    const gap = Math.max(0, Math.min(6, Number(this.props.gap ?? 2)));
-    const pitch = 176 / n;
-    const size = Math.max(1, pitch - gap);
-    const key = n + ':' + gap;
-    if (this._key !== key) {
-      const c = (n - 1) / 2, base = [];
-      for (let j = 0; j < n; j++) {
-        for (let i = 0; i < n; i++) {
-          const dx = i - c, dy = j - c, d = Math.sqrt(dx * dx + dy * dy);
-          if (d > c + 0.45) continue;
-          const len = d || 1;
-          const k = ((i * 73 + j * 151 + i * j * 7) % 97) / 97;
-          base.push({
-            i, j, d,
-            x: (i * pitch + gap / 2).toFixed(2), y: (j * pitch + gap / 2).toFixed(2),
-            ux: (dx / len).toFixed(3), uy: (dy / len).toFixed(3),
-            r: Math.round(d * 11 / n), k: k.toFixed(3)
-          });
+    /* Still frames of the presence ring, same geometry as the landing page (site/index.html):
+       24 square segments around a 64-unit radius, centred at (240, 236) on the 480 screen.
+       Motion lives on the landing page; these are representative moments of each state. */
+    if (!this._states) {
+      const N = 24, cy = 236;
+      const voice = (i, seed) => 0.55 + 0.45 * Math.abs(Math.sin(i * 1.9 + seed));
+      const ring = (fn) => {
+        const out = [];
+        for (let i = 0; i < N; i++) {
+          const g = fn(i);
+          out.push({ deg: (i / N * 360 - 90).toFixed(2), r: g.r, len: g.len.toFixed(1), w: g.w, a: g.a.toFixed(2), top: (cy - g.w / 2).toFixed(1) });
         }
-      }
-      const ringW = Math.max(1, n / 11);
-      this._idle = base.map((p) => ({ ...p, o: p.k < 0.14 ? 0.25 : 1 }));
-      this._listen = base.map((p) => ({ ...p, o: Math.floor(p.d / ringW) % 2 === 0 ? 1 : 0.18 }));
-      this._think = base.map((p) => ({ ...p, o: 1 }));
-      /* Equalizer: column heights follow a fixed voice-like profile, cut to the circle. */
-      const wave = [0.35, 0.6, 0.9, 0.55, 1, 0.75, 0.95, 0.5, 0.8, 0.45, 0.3];
-      const cols = [];
-      for (let i = 0; i < n; i++) {
-        const dx = i - c;
-        const half = Math.sqrt(Math.max(0, (c + 0.45) * (c + 0.45) - dx * dx));
-        const h = half * wave[Math.floor((i / n) * wave.length)];
-        const px = [];
-        for (let j = 0; j < n; j++) {
-          if (Math.abs(j - c) <= h) px.push({ y: (j * pitch + gap / 2).toFixed(2) });
-        }
-        cols.push({ x: (i * pitch + gap / 2).toFixed(2), w: size.toFixed(2), d: (-(Math.abs(dx) * 70)).toFixed(0) + 'ms', px });
-      }
-      this._speak = cols;
-      this._key = key;
+        return out;
+      };
+      this._states = [
+        { name: 'Idle', status: 'Tap to talk', note: 'Solid ring · breathes',
+          segs: ring(() => ({ r: 64, len: 12, w: 16.9, a: 1 })) },
+        { name: 'Listening', status: 'Listening', note: 'Follows your voice',
+          segs: ring((i) => ({ r: 74, len: 12 + 58 * voice(i, 0.7) * (0.35 + 0.65 * Math.abs(Math.sin(i * 1.9 + 2.1))), w: 12, a: 1 })) },
+        { name: 'Thinking', status: 'Thinking', note: 'A lit arc circling',
+          segs: ring((i) => { const d = (7 - i + N) % N; return { r: 64, len: d < 2.5 ? 22 : 12, w: 12, a: Math.max(0.22, 1 - d / 13) }; }) },
+        { name: 'Speaking', status: 'Speaking', note: 'Follows its voice',
+          segs: ring((i) => { const m = Math.min(i, N - i) / (N / 2); return { r: 70, len: 12 + 50 * (0.4 + 0.6 * Math.abs(Math.sin(m * 5.1 + 1.3))), w: 12, a: 1 }; }) }
+      ];
     }
-    return {
-      idle: this._idle, listen: this._listen, think: this._think, speak: this._speak,
-      size: size.toFixed(2),
-      shatter: Number(this.props.shatter ?? 90),
-      speed: Number(this.props.speed ?? 1),
-      accent: this.props.accent ?? '#FF5A1F'
-    };
+    return { states: this._states, accent: this.props.accent ?? '#FF5A1F' };
   }
 }
 </script>
