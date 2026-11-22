@@ -201,3 +201,20 @@ and the time, tokens and result for "what's the temperature here right now?".
     marker** (the first 2,772 bytes). The time and the place come only after it.
 - Logs and storage unchanged from the first build. The new log fields are counts only: cache read and
   written, searches, fetches.
+
+### On the board, after the change (2026-11-22)
+
+Flashed (app slot only), verified. Three spoken questions, within a minute:
+
+| Question | Release to plate | Searches / pages | Input tokens |
+|---|---|---|---|
+| "What time is it?" | 3.8 s | 0 / 0 | 140, plus 7,203 **written** to the cache |
+| "What day is it today?" | 2.8 s | 0 / 0 | 129, plus 7,203 **read** from the cache |
+| Current temperature here | 35.7 s | 2 / 1 | 151, plus 91,180 read from the cache and 4,145 written |
+
+- **Caching works.** After the first question, the fixed 7,200 tokens are read from the cache at 5% of
+  the input price, so a question without a search costs roughly what it did before web search.
+- **Current weather still isn't reliable.** Two searches and one fetched page took 35 s and found no
+  single current figure: the sites disagreed. Claude said so and pointed to a weather service instead of
+  guessing. Web search is the wrong tool for live readings. Next: a weather tool backed by a weather API
+  (for example Open-Meteo: free, no key), in its own issue and review.
