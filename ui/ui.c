@@ -21,6 +21,7 @@ static lv_obj_t *s_scr;
 static lv_obj_t *s_orb_layer;
 static lv_obj_t *s_ring;
 static lv_obj_t *s_status;
+static lv_obj_t *s_caption;         /* one line under the status: what Tessera heard */
 static lv_obj_t *s_clock;
 static lv_obj_t *s_plate;          /* the plate on screen, or NULL */
 static lv_obj_t *s_detents;
@@ -199,6 +200,11 @@ void ui_set_state(ui_state_t state)
     lv_timer_resume(s_ring_timer);
     s_state = state;
     lv_label_set_text(s_status, STATUS_TEXT[state]);
+}
+
+void ui_set_caption(const char *text)
+{
+    lv_label_set_text(s_caption, text ? text : "");
 }
 
 /* ---------- plates and the deck ---------- */
@@ -407,6 +413,16 @@ void ui_create(void)
     lv_obj_set_style_text_font(s_status, TS_FONT_SUB, 0);
     lv_obj_set_style_text_color(s_status, TS_INK, 0);
     lv_obj_align(s_status, LV_ALIGN_BOTTOM_MID, 0, TS_PX(-70));
+
+    s_caption = lv_label_create(s_orb_layer);
+    lv_obj_set_style_text_font(s_caption, TS_FONT_FOOT, 0);
+    lv_obj_set_style_text_color(s_caption, TS_DIM, 0);
+    lv_obj_set_style_text_align(s_caption, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_width(s_caption, TS_PX(400));
+    lv_label_set_long_mode(s_caption, LV_LABEL_LONG_DOT);
+    lv_obj_set_height(s_caption, lv_font_get_line_height(TS_FONT_FOOT));
+    lv_obj_align(s_caption, LV_ALIGN_BOTTOM_MID, 0, TS_PX(-38));
+    lv_label_set_text(s_caption, "");
 
     s_detents = lv_obj_create(s_scr);
     lv_obj_remove_style_all(s_detents);

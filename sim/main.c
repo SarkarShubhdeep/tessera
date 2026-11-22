@@ -163,6 +163,8 @@ int main(int argc, char **argv)
         static const char *const STATES[] = {"orb-idle", "orb-listening", "orb-thinking", "orb-speaking"};
         for (int st = 0; st < UI_STATE_COUNT; st++) {
             ui_set_state((ui_state_t)st);
+            /* Thinking after a spoken question shows what was heard under the ring. */
+            ui_set_caption(st == UI_STATE_THINKING ? "what should I cook with leftover rice" : "");
             pump(700);
             /* Voice states: wait for a loud moment so the still shows the ring mid-syllable. */
             for (int w = 0; (st == UI_STATE_LISTENING || st == UI_STATE_SPEAKING) && w < 800; w++) {
@@ -176,6 +178,7 @@ int main(int argc, char **argv)
                 return 1;
             }
         }
+        ui_set_caption("");
         for (int i = 0; i < nfiles; i++) {
             char *json = read_file(files[i]);
             cJSON *spec = json ? cJSON_Parse(json) : NULL;

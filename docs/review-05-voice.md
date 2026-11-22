@@ -1,6 +1,6 @@
 # Review 05: voice (speech to Claude through Groq)
 
-**Status:** draft 2026-11-22, waiting for approval. Nothing built yet.
+**Status:** approved 2026-11-22, built and audited (below). Not flashed yet.
 **Build:** step 05a plus voice. Hold the AI button, speak, let go: the board sends the recording to Groq,
 gets the words back, sends them to Claude, and draws the plate. No Mac involved. The plan and the reasons
 for Groq are in issue [#7](https://github.com/SarkarShubhdeep/tessera/issues/7) and
@@ -139,3 +139,28 @@ Mac sees.
 
 **Stop rule unchanged:** any buzz, any sound from the speaker, or a mismatched pin means hold POWER and
 restore.
+
+## Build audit (2026-11-22)
+
+- Builds with no warnings. App 1.83 MB (`0x1beca0`), in the 8 MB `main_app` slot. The size check still
+  warns about the factory's 1.75 MB `vibe_mode` slot; nothing is written there. The simulator builds and
+  shows the caption ([design/gallery/orb-thinking-heard.png](../design/gallery/orb-thinking-heard.png)).
+- **NVS:** `nvs_set_str`, `nvs_commit` and `nvs_erase_key` appear only in `main/keys.c`, all on namespace
+  `tessera`, all reached only from a `key groq` command. `app` is opened once, `NVS_READONLY`
+  (`settings.c`). Reading the Groq key opens `tessera` read-only too, so a board with no key saved gets
+  nothing created at boot. `nvs_flash_erase` and `nvs_erase_all` are not in the firmware at all (checked
+  the symbols in `tessera.elf`); `nvs_erase_key` is the only erase linked.
+- **Keys and logs:** every log line was checked. Key lines print only "saved / missing / cleared" and a
+  length. A rejected key (HTTP 401/403) logs "the saved Groq key was rejected" without Groq's message; other
+  Groq errors print their message only if it has no `gsk_` in it. A console line that contains `gsk_`
+  without `key groq` in front is refused and never sent to Claude. The console line buffer is wiped after
+  each line. Maximum log level is INFO, so the HTTP client's header dumps aren't compiled in.
+- **Where the Groq key goes:** read from NVS for each recording, put into the `Authorization` header to
+  `https://api.groq.com/openai/v1/audio/transcriptions` (`groq.c`), and the local copies are wiped right
+  after.
+- **Echo:** the USB console is TinyUSB's CDC console, which doesn't echo input (only its test apps do).
+  The board check still starts with `key status` to confirm.
+- **Pins:** no new pin calls. The I2S channel is still receive-only (`dout` unused); the codec's GPIO
+  helper still isn't linked.
+- **Known limit:** the caption font is Latin-only. A question in, say, Hindi still goes to Claude
+  correctly, but the caption under the ring shows only the Latin characters in it.

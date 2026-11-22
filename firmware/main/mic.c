@@ -12,13 +12,14 @@
 #include "esp_check.h"
 #include "esp_codec_dev.h"
 #include "esp_codec_dev_defaults.h"
+#include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
 static const char *TAG = "mic";
 
-#define RATE_HZ     16000
+#define RATE_HZ     MIC_RATE_HZ
 #define FRAME_MS    20
 #define FRAMES      (RATE_HZ * FRAME_MS / 1000)
 #define GAIN_DB     30.0f
@@ -27,6 +28,13 @@ static const char *TAG = "mic";
 
 static esp_codec_dev_handle_t s_dev;
 static volatile uint8_t s_level;
+
+/* Recording (review 05): mono 16 kHz into one PSRAM buffer, allocated once. The mic task appends a
+ * frame, then advances s_rec_len, so a reader that takes s_rec_len after stopping sees whole frames. */
+static int16_t *s_rec;
+static volatile bool s_recording;
+static volatile size_t s_rec_len;
+static volatile float s_rec_peak_db;
 
 uint8_t mic_level(void) { return s_level; }
 
@@ -50,6 +58,19 @@ static void mic_task(void *arg)
         float db = 20.0f * log10f(rms / 32768.0f + 1e-9f);
         float x = (db - FLOOR_DB) / (CEIL_DB - FLOOR_DB);
         s_level = (uint8_t)(fminf(1.0f, fmaxf(0.0f, x)) * 255.0f);
+
+        if (s_recording && s_rec) {
+            size_t n = s_rec_len;
+            size_t room = MIC_REC_MAX_SAMPLES - n;
+            size_t take = room < FRAMES ? room : FRAMES;
+            for (size_t i = 0; i < take; i++) {
+                s_rec[n + i] = buf[i * 2];   /* left slot */
+            }
+            s_rec_len = n + take;
+            if (db > s_rec_peak_db) {
+                s_rec_peak_db = db;
+            }
+        }
 
         if (db > peak_db) {
             peak_db = db;
@@ -114,7 +135,32 @@ esp_err_t mic_start(void)
     ESP_RETURN_ON_FALSE(esp_codec_dev_open(s_dev, &fs) == ESP_CODEC_DEV_OK, ESP_FAIL, TAG, "open");
     esp_codec_dev_set_in_gain(s_dev, GAIN_DB);
 
+    s_rec = heap_caps_malloc(MIC_REC_MAX_SAMPLES * sizeof(int16_t), MALLOC_CAP_SPIRAM);
+    ESP_RETURN_ON_FALSE(s_rec, ESP_ERR_NO_MEM, TAG, "recording buffer");
+
     xTaskCreate(mic_task, "mic", 4096, NULL, 5, NULL);
     ESP_LOGI(TAG, "ES8311 microphone on, %d Hz, gain %.0f dB", RATE_HZ, GAIN_DB);
     return ESP_OK;
 }
+
+void mic_record_start(void)
+{
+    s_recording = false;
+    s_rec_len = 0;
+    s_rec_peak_db = -120.0f;
+    s_recording = true;
+}
+
+size_t mic_record_stop(const int16_t **pcm, float *peak_db)
+{
+    s_recording = false;
+    if (pcm) {
+        *pcm = s_rec;
+    }
+    if (peak_db) {
+        *peak_db = s_rec_peak_db;
+    }
+    return s_rec_len;
+}
+
+bool mic_record_full(void) { return s_recording && s_rec_len >= MIC_REC_MAX_SAMPLES; }

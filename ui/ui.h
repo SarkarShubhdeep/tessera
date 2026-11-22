@@ -29,6 +29,9 @@ ui_state_t ui_get_state(void);
  * calls this ~30 times a second; the ring's segment lengths follow it. */
 void ui_set_level(uint8_t level);
 
+/* One dim line under the ring: what Tessera heard, or why nothing was sent. NULL or "" clears it. */
+void ui_set_caption(const char *text);
+
 /* Show a plate (the engine's `plate` event). It becomes the newest plate in the deck. */
 void ui_show_plate(const cJSON *spec, bool animate);
 

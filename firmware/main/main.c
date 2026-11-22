@@ -1,5 +1,7 @@
-/* Tessera on the ESP-Mosaico, step 05a: screen, touch, AI button, mic level, and Claude over Wi-Fi.
- * A line typed into the USB console is sent to Claude; the answer arrives as a plate (review 04).
+/* Tessera on the ESP-Mosaico, step 05b: screen, touch, AI button, microphone, Claude over Wi-Fi, and voice.
+ * Hold the AI button and speak: the recording goes to Groq for the words, the words go to Claude, and the
+ * answer arrives as a plate (review 05). A line typed into the USB console is still a question (review 04);
+ * a line starting with "key" manages the Groq key and is never logged or sent.
  *
  * Runs the same surface as the Mac simulator (ui/). Tap the ring to cycle its states, swipe through
  * five example plates, hold the AI button to "talk" (a stand-in until the engine exists). LVGL's
@@ -19,6 +21,7 @@
 #include "lvgl.h"
 #include "mic.h"
 #include "claude.h"
+#include "keys.h"
 #include "net.h"
 #include "settings.h"
 #include <string.h>
@@ -123,36 +126,99 @@ static void touch_read(lv_indev_t *indev, lv_indev_data_t *data)
     }
 }
 
-/* AI button stand-in for the engine: hold = listening; release = thinking 1.5 s, speaking 3 s, rest. */
+/* AI button (review 05): hold = record and listen; release = send to Groq, then Claude. */
+#define MIN_PRESS_MS 400
+
+static void finish_recording(uint32_t held_ms)
+{
+    const int16_t *pcm;
+    float peak;
+    size_t n = mic_record_stop(&pcm, &peak);
+    ESP_LOGI(TAG, "AI button: released after %u ms, %.1f s recorded, loudest %.1f dBFS", (unsigned)held_ms,
+             n / (float)MIC_RATE_HZ, peak);
+    if (held_ms < MIN_PRESS_MS) {
+        ui_set_state(UI_STATE_IDLE);   /* a tap by mistake: nothing sent */
+        return;
+    }
+    if (peak < MIC_SILENCE_DB) {
+        ui_set_state(UI_STATE_IDLE);
+        ui_set_caption("didn't hear anything");
+        return;
+    }
+    if (!claude_ask_voice(pcm, n)) {
+        ui_set_state(UI_STATE_IDLE);
+        ui_set_caption("Claude isn't set up");
+        return;
+    }
+    ui_set_state(UI_STATE_THINKING);
+}
+
 static void ai_button_poll(lv_timer_t *t)
 {
     (void)t;
-    static bool was_down;
-    static uint32_t released_at;
+    static bool was_down, recording;
+    static uint32_t pressed_at;
     bool down = board_ai_button_pressed();
     uint32_t now = lv_tick_get();
     if (down && !was_down) {
-        ESP_LOGI(TAG, "AI button: listening");
-        ui_set_state(UI_STATE_LISTENING);
-        released_at = 0;
-    } else if (!down && was_down) {
-        ESP_LOGI(TAG, "AI button: released, thinking");
-        ui_set_state(UI_STATE_THINKING);
-        released_at = now ? now : 1;
-    } else if (!down && released_at) {
-        uint32_t dt = lv_tick_diff(now, released_at);
-        if (dt > 4500) {
-            ui_set_state(UI_STATE_IDLE);
-            released_at = 0;
-        } else if (dt > 1500) {
-            static uint32_t spoke_for;
-            if (spoke_for != released_at) {
-                ui_set_state(UI_STATE_SPEAKING);
-                spoke_for = released_at;
-            }
+        if (claude_busy()) {
+            ESP_LOGI(TAG, "AI button: still answering the last one; ignored");
+        } else {
+            ESP_LOGI(TAG, "AI button: listening");
+            ui_set_caption("");
+            ui_set_state(UI_STATE_LISTENING);
+            mic_record_start();
+            recording = true;
+            pressed_at = now;
         }
+    } else if (recording && (!down || mic_record_full())) {
+        recording = false;   /* let go, or 30 s reached: stop until the next press */
+        finish_recording(lv_tick_diff(now, pressed_at));
     }
     was_down = down;
+}
+
+/* ---------- the Groq key, typed into the console by you ---------- */
+
+/* Handles a line that starts with "key". The line holds a secret: it is never logged or echoed. */
+static void key_command(char *line)
+{
+    char *arg = line + 3;
+    while (*arg == ' ') {
+        arg++;
+    }
+    if (strcmp(arg, "status") == 0) {
+        size_t n = keys_groq_len();
+        if (n) {
+            ESP_LOGI(TAG, "groq key: saved (%u chars)", (unsigned)n);
+        } else {
+            ESP_LOGI(TAG, "groq key: missing");
+        }
+    } else if (strncmp(arg, "groq ", 5) == 0) {
+        char *k = arg + 5;
+        while (*k == ' ') {
+            k++;
+        }
+        size_t len = strlen(k);
+        while (len && k[len - 1] == ' ') {
+            k[--len] = '\0';
+        }
+        if (strcmp(k, "clear") == 0) {
+            esp_err_t err = keys_clear_groq();
+            ESP_LOGI(TAG, "groq key %s", err == ESP_OK ? "cleared" : "could not be cleared");
+        } else if (!keys_groq_valid(k)) {
+            ESP_LOGW(TAG, "that doesn't look like a Groq key (gsk_..., %u chars); not saved", (unsigned)len);
+        } else {
+            esp_err_t err = keys_set_groq(k);
+            if (err == ESP_OK) {
+                ESP_LOGI(TAG, "groq key saved (%u chars)", (unsigned)len);
+            } else {
+                ESP_LOGE(TAG, "groq key not saved (%s)", esp_err_to_name(err));
+            }
+        }
+    } else {
+        ESP_LOGW(TAG, "key commands: key status | key groq <key> | key groq clear");
+    }
 }
 
 /* ---------- Claude: console questions in, plates out ---------- */
@@ -172,13 +238,19 @@ static void console_task(void *arg)
         }
         if (c == '\r' || c == '\n') {
             line[n] = '\0';
-            if (n > 0) {
+            if (strncmp(line, "key", 3) == 0 && (line[3] == ' ' || line[3] == '\0')) {
+                key_command(line);
+            } else if (strstr(line, "gsk_")) {
+                /* A Groq key typed without "key groq" in front: never send it to Claude. */
+                ESP_LOGW(TAG, "that line looks like a Groq key; not sent. Use: key groq <key>");
+            } else if (n > 0) {
                 if (!net_is_up()) {
                     ESP_LOGW(TAG, "not connected; question dropped");
                 } else if (!claude_ask(line)) {
                     ESP_LOGW(TAG, "busy; question dropped");
                 }
             }
+            memset(line, 0, sizeof(line));
             n = 0;
         } else if (n < (int)sizeof(line) - 1) {
             line[n++] = (char)c;
@@ -186,20 +258,29 @@ static void console_task(void *arg)
     }
 }
 
-/* UI side: think while a request is in flight, draw the plate when it lands. */
+/* UI side: think while a request is in flight; show what was heard, then the plate. */
 static void claude_poll(lv_timer_t *t)
 {
     (void)t;
     static bool was_busy;
     bool busy = claude_busy();
-    if (busy && !was_busy) {
+    if (busy && !was_busy && ui_get_state() != UI_STATE_LISTENING) {
         ui_set_state(UI_STATE_THINKING);
     }
     was_busy = busy;
-    cJSON *plate = claude_take_plate();
-    if (plate) {
-        ui_show_plate(plate, true);
-        cJSON_Delete(plate);
+    claude_evt_t e;
+    while (claude_take_event(&e)) {
+        if (e.kind == CLAUDE_EVT_HEARD) {
+            ui_set_caption(e.text);
+        } else if (e.kind == CLAUDE_EVT_DONE) {
+            ui_set_state(UI_STATE_IDLE);
+            ui_set_caption(e.text);
+        } else if (e.plate) {
+            ui_set_state(UI_STATE_IDLE);   /* the ring rests under the plate */
+            ui_show_plate(e.plate, true);
+            cJSON_Delete(e.plate);
+        }
+        free(e.text);
     }
 }
 
@@ -207,7 +288,17 @@ static void claude_bring_up(void *arg)
 {
     (void)arg;
     static tsr_settings_t st;   /* static: keeps the 400-byte struct off the stack */
-    if (settings_load(&st) != ESP_OK) {
+    esp_err_t loaded = settings_load(&st);
+    /* The console starts even without Claude, so the Groq key can be entered. */
+    xTaskCreate(console_task, "console", 4096, NULL, 3, NULL);
+    keys_log_stats("at boot");
+    size_t gl = keys_groq_len();
+    if (gl) {
+        ESP_LOGI(TAG, "groq key: saved (%u chars)", (unsigned)gl);
+    } else {
+        ESP_LOGI(TAG, "groq key: missing (type: key groq <key>)");
+    }
+    if (loaded != ESP_OK) {
         ESP_LOGW(TAG, "Claude off: saved settings incomplete");
         vTaskDelete(NULL);
     }
@@ -221,8 +312,7 @@ static void claude_bring_up(void *arg)
     memset(st.wifi_password, 0, sizeof(st.wifi_password));
     ESP_ERROR_CHECK(claude_start(st.api_key));
     memset(st.api_key, 0, sizeof(st.api_key));
-    xTaskCreate(console_task, "console", 4096, NULL, 3, NULL);
-    ESP_LOGI(TAG, "ready: type a question into this console and press Enter");
+    ESP_LOGI(TAG, "ready: hold the AI button and speak, or type a question and press Enter");
     vTaskDelete(NULL);
 }
 
