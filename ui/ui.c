@@ -282,8 +282,9 @@ int ui_deck_pos(void) { return s_pos; }
 
 /* ---------- input: tap cycles the orb; swipe and arrow keys move through the deck ---------- */
 
-/* A 2 s long press on the ring opens the Setup plate (review 07). The tap that ends it is swallowed. */
-#define SETUP_HOLD_MS 2000
+/* A 10 s hold on the ring opens the Setup plate (review 07): long enough that it never opens by accident. The
+ * Setup plate still needs Start before anything radio-related happens. The tap that ends the hold is swallowed. */
+#define SETUP_HOLD_MS 10000
 static uint32_t s_press_at;
 static bool s_long_fired;
 

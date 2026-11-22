@@ -122,7 +122,7 @@ What the page does with your values:
 
 No computer needed. The board opens its own private hotspot for a few minutes:
 
-1. On the ring screen, **hold your finger on the screen for 2 seconds**. The Setup plate appears. Tap
+1. On the ring screen, **hold your finger on the screen for 10 seconds**. The Setup plate appears. Tap
    **Start**.
 2. **Scan the first QR code** with your phone's camera and join `Tessera-XXXX`. Your phone may say the
    network has no internet. Stay connected.

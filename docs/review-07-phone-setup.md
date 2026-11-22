@@ -27,7 +27,7 @@ Tessera does none of that:
 
 ## How it works
 
-1. **You open it on the board.** A long press (2 s) on the ring screen shows a **Setup** plate. Its
+1. **You open it on the board.** A **10-second** hold on the ring screen shows a **Setup** plate. Its
    **Start** choice starts setup; nothing radio-related happens before that.
 2. **The board starts a private hotspot** next to its normal Wi-Fi connection (the radio's
    station + access-point mode). The board stays connected to your home network while setup runs.
@@ -176,3 +176,8 @@ was saved.
 - The owner's own attempt in Chrome on the Mac also got nothing.
 
 **Session 2, left alone:** `hotspot off (timed out)` exactly 5:00 after it started.
+
+**Owner follow-ups (2026-11-22):**
+- The device that joined session 2 at 13:45:29 was the owner's phone.
+- The hold that opens the Setup plate went from 2 s to **10 s**, so a casual touch can't open it. The plate
+  still needs **Start** before the radio does anything.

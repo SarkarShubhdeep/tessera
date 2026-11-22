@@ -15,7 +15,7 @@ typedef void (*ui_setup_cb_t)(ui_setup_action_t action);
 /* Who hears Start and Cancel. */
 void ui_setup_set_handler(ui_setup_cb_t cb);
 
-/* The intro: what setup does, with Start and Cancel. Opened by a 2 s long press on the ring. */
+/* The intro: what setup does, with Start and Cancel. Opened by a 10 s hold on the ring. */
 void ui_setup_open(void);
 
 /* A step with a QR code: a title above, one line under it. */
