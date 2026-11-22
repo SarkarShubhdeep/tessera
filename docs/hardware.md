@@ -49,3 +49,9 @@ file the motor is only a plain output peripheral, held low.
 
 ESP-Claw drives the CO5300 at 40 MHz with a 33 ms refresh period (30 fps cap). The S31's SPI can run
 QSPI at 80 MHz; whether this panel accepts 80 MHz still needs testing on the board.
+
+## Lesson: the factory bootloader
+
+The Mosaico ships with a custom bootloader (an ESP-IDF 6.1 development build with an "Idea Run" /
+"Vibe Mode" boot menu). An app built with the ESP-IDF 6.1 release crashes under it before USB comes up.
+Flash the bootloader from the same ESP-IDF as the app. Keep the factory bootloader backed up to go back.

@@ -1,6 +1,6 @@
 # Pin review 01: screen-only build
 
-**Status:** approved 2026-11-21. Built and audited (below). Not flashed yet.
+**Status:** approved 2026-11-21, built, audited and running on the board (results at the end).
 **Build:** the first Tessera firmware on the ESP-Mosaico v1.2. It draws the ring and the plates, and
 nothing else: no touch, no audio, no motor, no Wi-Fi, no modules.
 
@@ -97,3 +97,34 @@ Don't use `idf.py flash`: it would also write the bootloader, partition table an
 - Does the 480 × 480 CO5300 come up with our init table, the right way round?
 - Ring frame rate at 40 MHz QSPI, then at 80 MHz if the panel accepts it.
 - Swipe frame rate: is it above 45 fps, or do swipes fall back to a plain slide?
+
+## On the board (2026-11-21)
+
+**Attempt 1 (app slot only, factory bootloader): failed.** The board showed the factory bootloader's
+"Idea Run" screen, then reset in a loop before USB came up, with the motor pulsing on each reset. Held
+off with POWER; the factory app was written back into its slot. Cause: the factory bootloader is a
+custom ESP-IDF 6.1 *development* build (it picks between "Idea Run" and "Vibe Mode"), and the S31's
+startup code changed before the 6.1 release Tessera is built with. The motor pulsed because GPIO8
+floats from every reset until the app's constructor runs.
+
+**Attempt 2 (Tessera's own bootloader + app slot): runs.** Two safety changes went in first:
+- a bootloader hook drives GPIO8 low as the second-stage bootloader starts (`bootloader_components/`);
+- a crash halts and saves a core dump instead of rebooting, so no reset loop is possible.
+
+Written: bootloader at `0x2000` and the app at `0x210000`. NVS, the partition table, `otadata` and
+Vibe Mode untouched. While Tessera's bootloader is installed, the factory boot menu isn't available.
+To go back: write `bootloader-0x2000.bin` and `main_app-0x210000.bin` from the backups folder.
+
+Pin check printed at boot: GPIO8 = 0 (pull-down), GPIO45 = 0, GPIO60 = 0 (rail on), SPI signals on
+9/35/36/42/50/51, RST 44 an output; GPIO57 untouched; GPIO34 in its reset default. Matches the table.
+
+| What | Result (40 MHz QSPI, partial rendering, two 48-line buffers) |
+|---|---|
+| Ring, every state | 62 fps steady; render 8–10 ms a frame, CPU ~70% |
+| Plate entrance (rise + fade) | dips to 32–54 fps for the 260 ms it runs |
+| Swipe (slide + fade) | dips to 33–58 fps |
+| Static plate | 0 redraws, CPU ~0% |
+| Free memory after a full cycle | 310 KB internal, 33 MB PSRAM |
+
+Swipes and entrances drop below the 45 fps line from the design system at times. Options, cheapest
+first: 80 MHz QSPI (halves flush time), larger or PSRAM buffers, then the plain-slide fallback.
