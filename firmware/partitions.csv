@@ -1,0 +1,12 @@
+# The factory Mosaico-Claw 0.7.0 table, unchanged. Tessera's app goes in main_app (ota_0, 0x210000),
+# so a flash rewrites only that slot: bootloader, NVS (Wi-Fi and API settings) and data stay as they are.
+# Name,     Type, SubType,  Offset,   Size
+otadata,    data, ota,      0x9000,   8K
+phy_init,   data, phy,      0xb000,   4K
+sysmeta,    data, nvs,      0xc000,   80K
+vibe_mode,  app,  test,     0x20000,  1792K
+coredump,   data, coredump, 0x1e0000, 128K
+nvs,        data, nvs,      0x200000, 24K
+main_app,   app,  ota_0,    0x210000, 8000K
+ui_apps,    data, 0x41,     0x9e0000, 3200K
+system,     data, littlefs, 0xd00000, 3000K

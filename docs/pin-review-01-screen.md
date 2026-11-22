@@ -1,6 +1,6 @@
 # Pin review 01: screen-only build
 
-**Status:** waiting for approval. Nothing has been flashed.
+**Status:** approved 2026-11-21. Built and audited (below). Not flashed yet.
 **Build:** the first Tessera firmware on the ESP-Mosaico v1.2. It draws the ring and the plates, and
 nothing else: no touch, no audio, no motor, no Wi-Fi, no modules.
 
@@ -19,6 +19,7 @@ below, so the list is the whole truth.
 
 | # | When | GPIO | What | Set to | Why it's safe |
 |---|---|---|---|---|---|
+| 0 | ROM, before any app | **58** | UART0 TX (serial log) | UART TX, idles high | Not ours: the chip's ROM and the factory bootloader drive it on every boot, and the factory app does too. Listed so the table is complete |
 | 1 | Before `app_main` | **8** | Vibration motor | Output **low**, pull-down on | Motor off. Done first, before anything else can run. Espressif's board does the same (`init_level: 0`) |
 | 2 | Before `app_main` | **45** | Speaker amplifier enable | Output **low** | Amp off. No audio in this build, so there's nothing to amplify. (The ESP-Claw build drove it **high**) |
 | 3 | Start of `app_main` | (none) | USB console | TinyUSB CDC | Uses the USB HS PHY's own pads, not GPIOs. Keeps logs and the esptool auto-download working, so recovery stays easy |
@@ -29,7 +30,8 @@ below, so the list is the whole truth.
 | 8 | Display reset | **44** | Display reset | Low for 10 ms, then **high** | Standard panel reset; the driver does this once |
 | 9 | Display init | (none) | CO5300 commands | Sleep out, RGB565, brightness, display on | Commands over the bus, no pins. Same table that already ran on the board in the ESP-Claw build |
 
-That's all. **Ten GPIOs** are touched: 8, 45, 60, 42, 36, 51, 35, 9, 50, 44.
+That's all. **Ten GPIOs** are touched by Tessera's code: 8, 45, 60, 42, 36, 51, 35, 9, 50, 44, plus
+GPIO58, which the ROM already drives before any app runs.
 
 ## Pins this build does not touch
 
@@ -48,16 +50,45 @@ They stay as the chip leaves them after reset (inputs).
 | 33 | Camera D2, shares the USB-JTAG pad | Releasing it would cut the debug pad |
 | **34** | Camera module flash LED | Espressif only sets it (to off) when the camera starts. See the first-flash steps |
 
+## Build audit (2026-11-21)
+
+- `idf.py --preview build`: no warnings. App 845 KB (`0xd2c70`), 53% of the slot free.
+- Every call that configures a pin in our code and the components we link was listed and matched:
+  - `main/board.c` is the only file that names a GPIO: motor 8 and amp 45 (constructor), rail 60
+    (LEDC ramp, then plain GPIO), the SPI bus pins, CS 50, RST 44.
+  - `esp_lcd_co5300` 2.2.0 configures only the reset pin it is given (44).
+  - `esp_tinyusb` has a VBUS-monitor GPIO, used only when `self_powered = true`; the USB console uses
+    the default config (`self_powered = false`), so it never runs. The `tinyusb/hw/bsp` files are
+    examples and are not compiled.
+  - LVGL and the `ui/` sources touch no hardware.
+- Partition table: byte-for-byte identical to the factory table (read from the backup).
+
+## Flash plan: one slot only
+
+Tessera's app goes into the factory's `main_app` slot (`ota_0`, `0x210000`). Only that slot is written:
+the bootloader, the partition table, `otadata` and the NVS partitions (Wi-Fi and API settings) stay
+untouched.
+
+```
+esptool --chip esp32s31 -p <port> --before no-reset --after no-reset write-flash 0x210000 build/tessera.bin
+```
+
+Restore the factory app into the same slot (the slot image is cut from the full backup, kept outside the repo):
+
+```
+esptool --chip esp32s31 -p <port> --before no-reset --after no-reset write-flash 0x210000 backups/mosaico/main_app-0x210000.bin
+```
+
+Don't use `idf.py flash`: it would also write the bootloader, partition table and `otadata`.
+
 ## Checks before and after the flash
 
-**Before (no board needed):**
-1. Build it with no warnings.
-2. Search the build's source for every GPIO call (`gpio_config`, `gpio_set_level`, `ledc_channel_config`, SPI bus pins) and match each one to the table above. Anything not on the list blocks the flash.
+**Before (no board needed):** done; see the build audit.
 
 **On the board:**
 1. Remove the camera and interaction modules first. The 3.3 V rail powers the slots, and with no camera code GPIO34 (its flash LED) isn't set. With no modules attached, that question goes away.
-2. Back up first: the factory image is already saved (`backups/mosaico/`, kept out of the repo).
-3. Flash the app only.
+2. Backups are ready: the full factory image and the `main_app` slot (`backups/mosaico/`, kept out of the repo).
+3. Flash the app slot only (flash plan above).
 4. At boot the firmware prints the state of every output pin (`gpio_dump_io_configuration`). We compare it to this table.
 5. **Stop rule:** any buzz, any reset loop, or a pin that doesn't match means hold POWER to switch it off, then restore the factory image (steps in [hardware.md](hardware.md#recovery)).
 
