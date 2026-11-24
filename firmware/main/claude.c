@@ -16,6 +16,7 @@
 #include "groq.h"
 #include "keys.h"
 #include "net.h"
+#include "weather.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
@@ -29,7 +30,7 @@ extern const char ROOTS_PEM[] asm("_binary_anthropic_roots_pem_start");
 #define URL        "https://api.anthropic.com/v1/messages"
 #define MODEL      "claude-opus-5-5"
 #define BODY_MAX   (512 * 1024)   /* web search replies are bigger (review 08); PSRAM, allocated once */
-#define RESUMES    2              /* pause_turn: times to let a long search finish */
+#define ROUNDS     3              /* requests per question at most: pause_turn resumes and get_weather results */
 #define SEARCHES   3              /* web searches per question at most */
 
 static const char *SYSTEM_PROMPT =
@@ -50,7 +51,18 @@ static const char *SYSTEM_PROMPT =
     "little as you can. When you used a search, put the source's name (the site) in the plate's source or "
     "detail field. If the user's place is given, \"here\" and \"near me\" mean that place.\n"
     "Never present a forecast as the current value: if the search results don't give the current figure, say "
-    "so and give what you found.";
+    "so and give what you found.\n"
+    "For any weather question (now, today, tomorrow, rain, wind), call get_weather, not web_search. Use its "
+    "numbers and units as given, say Open-Meteo as the source, and mention the reading's time if it isn't "
+    "recent.";
+
+static const char *WEATHER_TOOL_JSON =
+    "{\"name\":\"get_weather\","
+    "\"description\":\"Current conditions and today's and tomorrow's forecast from a weather service (Open-Meteo). "
+    "Use it for any weather question instead of web search. Without place, it uses the user's own place.\","
+    "\"input_schema\":{\"type\":\"object\",\"properties\":{"
+    "\"place\":{\"type\":\"string\",\"description\":\"Another city, only if the user names one, as "
+    "'City, Region' or 'City, Country'\"}}}}";
 
 static const char *TOOL_JSON =
     "{\"name\":\"show_plate\","
@@ -125,6 +137,7 @@ static cJSON *build_request(const char *question)
     /* Tools, always in this order. */
     cJSON *tools = cJSON_AddArrayToObject(req, "tools");
     cJSON_AddItemToArray(tools, cJSON_Parse(TOOL_JSON));
+    cJSON_AddItemToArray(tools, cJSON_Parse(WEATHER_TOOL_JSON));   /* answered by the board (review 09) */
     /* Anthropic's server-side web search: Anthropic searches; the board never visits a site. Web fetch was tried
      * and removed (review 08): 35 s per live-weather question and still no single current figure. */
     cJSON *ws = cJSON_CreateObject();
@@ -217,6 +230,22 @@ static cJSON *plate_from_response(int status, cJSON *r)
     return plate;
 }
 
+/* True if Claude's reply calls get_weather and hasn't already made a plate. */
+static bool wants_weather(cJSON *r)
+{
+    bool weather = false, plate = false;
+    cJSON *block;
+    cJSON_ArrayForEach(block, cJSON_GetObjectItem(r, "content")) {
+        const char *bt = cJSON_GetStringValue(cJSON_GetObjectItem(block, "type"));
+        const char *name = cJSON_GetStringValue(cJSON_GetObjectItem(block, "name"));
+        if (bt && strcmp(bt, "tool_use") == 0 && name) {
+            weather |= strcmp(name, "get_weather") == 0;
+            plate |= strcmp(name, "show_plate") == 0;
+        }
+    }
+    return weather && !plate;
+}
+
 static cJSON *ask_claude(const char *q, body_t *body)
 {
     /* Read for each question (review 06): Tessera's saved key, else ESP-Claw's. Wiped when done. */
@@ -235,7 +264,7 @@ static cJSON *ask_claude(const char *q, body_t *body)
     cJSON *req = build_request(q);
     cJSON *plate = NULL;
     int64_t t0 = esp_timer_get_time();
-    for (int round = 0; round <= RESUMES && !plate; round++) {
+    for (int round = 0; round < ROUNDS && !plate; round++) {
         char *json = cJSON_PrintUnformatted(req);
         esp_http_client_config_t cfg = {
             .url = URL,
@@ -275,7 +304,45 @@ static cJSON *ask_claude(const char *q, body_t *body)
             break;
         }
         const char *stop = cJSON_GetStringValue(cJSON_GetObjectItem(r, "stop_reason"));
-        if (status == 200 && stop && strcmp(stop, "pause_turn") == 0 && round < RESUMES) {
+        bool last = round == ROUNDS - 1;
+        if (status == 200 && stop && strcmp(stop, "tool_use") == 0 && !last && wants_weather(r)) {
+            /* Claude asked the board for the weather: run it, answer with tool_result, ask again. */
+            cJSON *results = cJSON_CreateArray();
+            cJSON *block;
+            cJSON_ArrayForEach(block, cJSON_GetObjectItem(r, "content")) {
+                const char *bt = cJSON_GetStringValue(cJSON_GetObjectItem(block, "type"));
+                const char *name = cJSON_GetStringValue(cJSON_GetObjectItem(block, "name"));
+                if (!bt || strcmp(bt, "tool_use") != 0 || !name || strcmp(name, "get_weather") != 0) {
+                    continue;
+                }
+                const char *other = cJSON_GetStringValue(cJSON_GetObjectItem(cJSON_GetObjectItem(block, "input"), "place"));
+                bool is_error = false;
+                char *text = weather_tool(other, &is_error);
+                cJSON *tr = cJSON_CreateObject();
+                cJSON_AddStringToObject(tr, "type", "tool_result");
+                cJSON_AddStringToObject(tr, "tool_use_id", cJSON_GetStringValue(cJSON_GetObjectItem(block, "id")));
+                cJSON_AddStringToObject(tr, "content", text ? text : "The weather couldn't be read.");
+                if (is_error || !text) {
+                    cJSON_AddBoolToObject(tr, "is_error", true);
+                }
+                cJSON_AddItemToArray(results, tr);
+                free(text);
+            }
+            ESP_LOGI(TAG, "get_weather answered (%d call%s); asking again", cJSON_GetArraySize(results),
+                     cJSON_GetArraySize(results) == 1 ? "" : "s");
+            cJSON *msgs = cJSON_GetObjectItem(req, "messages");
+            cJSON *turn = cJSON_CreateObject();
+            cJSON_AddStringToObject(turn, "role", "assistant");
+            cJSON_AddItemToObject(turn, "content", cJSON_DetachItemFromObject(r, "content"));
+            cJSON_AddItemToArray(msgs, turn);
+            cJSON *user = cJSON_CreateObject();
+            cJSON_AddStringToObject(user, "role", "user");
+            cJSON_AddItemToObject(user, "content", results);
+            cJSON_AddItemToArray(msgs, user);
+            cJSON_Delete(r);
+            continue;
+        }
+        if (status == 200 && stop && strcmp(stop, "pause_turn") == 0 && !last) {
             /* A long search paused: send the conversation back as is and the search continues. */
             ESP_LOGI(TAG, "search still running (pause_turn); resuming");
             cJSON *turn = cJSON_CreateObject();
@@ -291,7 +358,7 @@ static cJSON *ask_claude(const char *q, body_t *body)
     memset(key, 0, sizeof(key));
     cJSON_Delete(req);
     if (!plate) {
-        plate = answer_plate("The search took too long. Try asking again.", "Claude");
+        plate = answer_plate("That took too many steps. Try asking again.", "Claude");
     }
     ESP_LOGI(TAG, "answered in %d ms", (int)((esp_timer_get_time() - t0) / 1000));
     return plate;
