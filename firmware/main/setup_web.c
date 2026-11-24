@@ -14,6 +14,7 @@
 #include "esp_http_server.h"
 #include "esp_log.h"
 #include "clock.h"
+#include "audio.h"
 #include "keys.h"
 #include "lwip/sockets.h"
 #include "setup_ap.h"
@@ -37,6 +38,7 @@ static const struct {
     {"groq", KEY_GROQ, "groq key"},
     {"tz", KEY_TZ, "time zone"},
     {"place", KEY_PLACE, "place"},
+    {"volume", KEY_VOLUME, "volume"},
 };
 #define N_SETTINGS (sizeof(SETTINGS) / sizeof(SETTINGS[0]))
 
@@ -103,6 +105,9 @@ static esp_err_t status(httpd_req_t *req)
         cJSON_AddStringToObject(o, "id", SETTINGS[i].id);
         cJSON_AddStringToObject(o, "state", SRC[src]);
         cJSON_AddNumberToObject(o, "len", (double)len);
+        if (SETTINGS[i].key == KEY_VOLUME) {   /* not personal: shown as a number */
+            cJSON_AddNumberToObject(o, "value", spk_volume());
+        }
         cJSON_AddItemToArray(arr, o);
     }
     return send_json(req, arr);
@@ -162,6 +167,10 @@ static esp_err_t save(httpd_req_t *req)
     }
     if (ok && i < N_SETTINGS && SETTINGS[i].key == KEY_TZ) {
         clock_apply_tz();
+    }
+    if (ok && i < N_SETTINGS && SETTINGS[i].key == KEY_VOLUME) {
+        extern void apply_volume(void);
+        apply_volume();
     }
     if (cJSON_IsString(val)) {
         memset(val->valuestring, 0, strlen(val->valuestring));   /* wipe before freeing */

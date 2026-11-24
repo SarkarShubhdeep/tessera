@@ -209,6 +209,13 @@ esp_err_t board_ai_button_init(void)
 
 bool board_ai_button_pressed(void) { return gpio_get_level(BOARD_GPIO_AI_BTN) == 0; }
 
+void board_amp(bool on)
+{
+    gpio_set_level(BOARD_GPIO_PA_EN, on ? 1 : 0);
+}
+
+bool board_amp_is_on(void) { return gpio_get_level(BOARD_GPIO_PA_EN) != 0; }
+
 void board_dump_pins(void)
 {
     const uint64_t mask = (1ULL << BOARD_GPIO_MOTOR) | (1ULL << BOARD_GPIO_PA_EN) | (1ULL << BOARD_GPIO_VCC_EN) |
@@ -218,7 +225,7 @@ void board_dump_pins(void)
                           (1ULL << BOARD_GPIO_TOUCH_INT) | (1ULL << BOARD_GPIO_AI_BTN) | (1ULL << BOARD_GPIO_I2S_MCLK) |
                           (1ULL << BOARD_GPIO_I2S_BCLK) | (1ULL << BOARD_GPIO_I2S_WS) | (1ULL << BOARD_GPIO_I2S_DIN) |
                           (1ULL << 52) | (1ULL << 57) | (1ULL << 34);
-    printf("--- pin check (compare with docs/pin-review-01-screen.md and -02-input.md, -03-mic.md) ---\n");
+    printf("--- pin check (compare with docs/pin-review-01-screen.md, -02-input.md, -03-mic.md, review-10-speaker.md) ---\n");
     gpio_dump_io_configuration(stdout, mask);
     ESP_LOGI(TAG, "levels: motor(8)=%d (want 0), pa(45)=%d (want 0), vcc_en(60)=%d (want 0 = rail on)",
              gpio_get_level(BOARD_GPIO_MOTOR), gpio_get_level(BOARD_GPIO_PA_EN), gpio_get_level(BOARD_GPIO_VCC_EN));

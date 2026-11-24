@@ -16,6 +16,7 @@
 #include "groq.h"
 #include "keys.h"
 #include "net.h"
+#include "tts.h"
 #include "weather.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
@@ -46,6 +47,9 @@ static const char *SYSTEM_PROMPT =
     "- gauge: label, value, min, max, unit, detail. For a value in a known range.\n"
     "- timer: label, seconds. When asked to time something.\n"
     "Keep every string short: the screen is small and the type is large. No markdown.\n"
+    "Always fill speech: what you say aloud with the plate, one or two short natural sentences (at most 200 "
+    "characters), written as spoken words: \"fifty four degrees\", not \"54\u00b0F\"; no symbols, lists or "
+    "abbreviations. It should answer the question on its own, not describe the plate.\n"
     "You can search the web with web_search. Use it only when the answer needs live or recent facts "
     "(weather, news, scores, prices, opening hours, events), not for things you already know. Search as "
     "little as you can. When you used a search, put the source's name (the site) in the plate's source or "
@@ -76,13 +80,16 @@ static const char *TOOL_JSON =
     "\"items\":{\"type\":\"array\",\"items\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}}},"
     "\"now\":{\"type\":\"integer\"},\"question\":{\"type\":\"string\"},"
     "\"options\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"selected\":{\"type\":\"integer\"},"
-    "\"min\":{\"type\":\"number\"},\"max\":{\"type\":\"number\"},\"seconds\":{\"type\":\"integer\"}},"
+    "\"min\":{\"type\":\"number\"},\"max\":{\"type\":\"number\"},\"seconds\":{\"type\":\"integer\"},"
+    "\"speech\":{\"type\":\"string\",\"description\":\"What Tessera says aloud with this plate: one or two short "
+    "sentences, at most 200 characters, in plain spoken words\"}},"
     "\"required\":[\"type\"]}}";
 
 typedef struct {
     char *question;          /* unused since issue #16: questions come from the AI button only */
     const int16_t *pcm;      /* the recording (mic's PSRAM buffer) */
     size_t samples;
+    int64_t released_us;     /* when the AI button was let go: for the timing log */
 } job_t;
 
 static QueueHandle_t s_in;      /* job_t */
@@ -220,9 +227,13 @@ static cJSON *plate_from_response(int status, cJSON *r)
             if (!plate) {
                 plate = answer_plate(text && text[0] ? text : "No answer came back.", "Claude");
             }
-            char *spec = cJSON_PrintUnformatted(plate);   /* the plate content only: no secrets */
+            /* The plate content only: no secrets, and not the spoken text (review 10). */
+            cJSON *shown = cJSON_Duplicate(plate, true);
+            cJSON_DeleteItemFromObject(shown, "speech");
+            char *spec = cJSON_PrintUnformatted(shown);
+            cJSON_Delete(shown);
             if (spec) {
-                ESP_LOGI(TAG, "plate: %s", spec);
+                ESP_LOGI(TAG, "plate: %s%s", spec, cJSON_GetObjectItem(plate, "speech") ? " (+ speech)" : "");
                 cJSON_free(spec);
             }
         }
@@ -431,7 +442,14 @@ static void worker(void *arg)
             if (!job.question) {
                 ESP_LOGI(TAG, "voice: release to plate %d ms", (int)((esp_timer_get_time() - t0) / 1000));
             }
+            /* The plate goes up first; the voice follows (review 10). The spoken text isn't logged. */
+            const char *speech = cJSON_GetStringValue(cJSON_GetObjectItem(plate, "speech"));
+            char *say = speech ? strdup(speech) : NULL;
             emit(CLAUDE_EVT_PLATE, plate, NULL);
+            if (say) {
+                tts_say(say, job.released_us);
+                free(say);
+            }
         }
         s_busy = false;
     }
@@ -458,7 +476,7 @@ static bool submit(job_t job)
 
 bool claude_ask_voice(const int16_t *pcm, size_t samples)
 {
-    return submit((job_t){.pcm = pcm, .samples = samples});
+    return submit((job_t){.pcm = pcm, .samples = samples, .released_us = esp_timer_get_time()});
 }
 
 bool claude_busy(void) { return s_busy; }
